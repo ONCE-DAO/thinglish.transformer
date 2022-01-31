@@ -1,7 +1,18 @@
 {
-  "name": "transformer",
+  "name": "thinglish.transformer",
   "version": "0.1.0",
   "description": "",
   "author": "",
-  "license": "AGPL-3.0"
+  "license": "AGPL-3.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONCE-DAO/thinglish.transformer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ONCE-DAO/thinglish.transformer/issues"
+  },
+  "homepage": "https://github.com/ONCE-DAO/thinglish.transformer#readme"
 }
