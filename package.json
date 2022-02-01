@@ -1,6 +1,6 @@
 {
   "name": "thinglish-transformer",
-  "namespace":"tla.EAM",
+  "namespace": "tla.EAM",
   "version": "0.1.0",
   "description": "",
   "author": "",
@@ -12,5 +12,8 @@
   "bugs": {
     "url": "https://github.com/ONCE-DAO/thinglish.transformer/issues"
   },
-  "homepage": "https://github.com/ONCE-DAO/thinglish.transformer#readme"
+  "homepage": "https://github.com/ONCE-DAO/thinglish.transformer#readme",
+  "dependencies": {
+    "typescript": "^4.5.5"
+  }
 }
