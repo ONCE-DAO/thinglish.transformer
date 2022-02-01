@@ -15,5 +15,8 @@
   "homepage": "https://github.com/ONCE-DAO/thinglish.transformer#readme",
   "dependencies": {
     "typescript": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.14"
   }
 }
