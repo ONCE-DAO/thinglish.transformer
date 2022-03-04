@@ -1,14 +1,26 @@
 {
-  "name": "component-transformer",
-  "version": "1.0.0",
+  "name": "thinglish-transformer",
+  "namespace": "tla.EAM",
+  "version": "0.1.1",
   "description": "transform classes to reflective components",
   "main": "dist/main.js",
+
+  "author": "Marcel Donges",
+  "license": "AGPL-3.0",
+  "main": "dist/main.js",
+
   "scripts": {
     "prepare": "ts-patch install",
     "test": "jest"
   },
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONCE-DAO/thinglish.transformer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ONCE-DAO/thinglish.transformer/issues"
+  },
+  "homepage": "https://github.com/ONCE-DAO/thinglish.transformer#readme",
   "devDependencies": {
     "typescript": "^4.5.4"
   },
