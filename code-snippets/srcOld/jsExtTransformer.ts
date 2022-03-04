@@ -4,6 +4,7 @@ import * as typescript from 'typescript'
 const allowedExtensions = ['.interface', '.class']
 const transformer = (_: typescript.Program) => (transformationContext: typescript.TransformationContext) => (sourceFile: typescript.SourceFile) => {
   function visitNode (node: typescript.Node): typescript.VisitResult<typescript.Node> {
+    console.log("my transformer"+node.kind)
     if (shouldMutateModuleSpecifier(node)) {
       if (typescript.isImportDeclaration(node)) {
         const newModuleSpecifier = typescript.createLiteral(`${node.moduleSpecifier.text}.js`)
