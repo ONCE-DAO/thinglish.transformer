@@ -87,11 +87,11 @@ const programTransformer = (program) => {
                 let myVisitor = visitors.filter(aTSNodeVisitor => {
                     return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind;
                 })[0];
-                console.log("  Node", ts.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''));
                 if (!myVisitor) {
                     myVisitor = visitor;
                 }
                 else {
+                    console.log("  Node", ts.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''));
                     node = myVisitor.visit(node);
                 }
                 // If it is a expression statement,
