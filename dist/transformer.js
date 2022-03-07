@@ -2,7 +2,7 @@
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.type = void 0;
-const ts = require("typescript");
+const TS = require("typescript");
 // class TSTransformerFactory {
 //   static createProgrammTransformer(thisNodeVisitor: TSNodeVisitor) {
 //     const programTransformer = (program: ts.Program) => {
@@ -34,6 +34,21 @@ const ts = require("typescript");
 //     return visitor;
 //   }
 // }
+// class ThinglishTransformerFactory implements ts.CustomTransformers {
+//     //getTransformer(context: ts.TransformationContext): ts.CustomTransformer { return new ThinglishInterfaceTransformer() }
+//         /** Custom transformers to evaluate before built-in .js transformations. */
+//         before(ctx: ts.TransformationContext) {
+//             let transformer: ts.CustomTransformer = new ThinglishInterfaceTransformer(ctx: ts.TransformationContext);
+//             console.log("bar")
+//             //throw "foo"
+//             this.transformer.transformSourceFile(node: ts.SourceFile)
+//             }
+//         }
+//         /** Custom transformers to evaluate after built-in .js transformations. */
+//         after(): (TransformerFactory<SourceFile> | CustomTransformerFactory)[];
+//         /** Custom transformers to evaluate after built-in .d.ts transformations. */
+//         afterDeclarations(): (TransformerFactory<Bundle | SourceFile> | CustomTransformerFactory)[];
+// }
 class BaseVisitor {
     constructor(aContext) {
         this.context = aContext;
@@ -53,24 +68,30 @@ BaseVisitor.implementations = new Array();
 // }
 class ThinglishInterfaceVisitor extends BaseVisitor {
     static get validTSSyntaxKind() {
-        return ts.SyntaxKind.InterfaceDeclaration;
+        return TS.SyntaxKind.InterfaceDeclaration;
     }
     visit(node) {
         let interfaceName = node.name.text + "InterfaceDescriptor";
         //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
-        const cd = ts.factory.createIdentifier('InterfaceDescriptor');
-        const call = ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(cd, "register"), undefined, [
-            ts.factory.createStringLiteral("com.some.package"),
-            ts.factory.createStringLiteral("SomeComponentName"),
-            ts.factory.createStringLiteral("1.0.0"),
-            ts.factory.createStringLiteral(interfaceName)
+        const cd = TS.factory.createIdentifier('InterfaceDescriptor');
+        const call = TS.factory.createCallExpression(TS.factory.createPropertyAccessExpression(cd, "register"), undefined, [
+            TS.factory.createStringLiteral("com.some.package"),
+            TS.factory.createStringLiteral("SomeComponentName"),
+            TS.factory.createStringLiteral("1.0.0"),
+            TS.factory.createStringLiteral(interfaceName)
         ]);
+        const variableDeclaration = TS.factory.createVariableDeclaration(interfaceName, 
+        /* exclamationToken optional */ undefined, 
+        /* type */ undefined, 
+        /* initializer */ call);
+        const variableDeclarationList = TS.factory.createVariableDeclarationList([variableDeclaration], TS.NodeFlags.Const);
+        const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList);
         //const dec = ts.factory.createDecorator(call)
         //const classDec = ts.factory.createClassDeclaration([dec], undefined, interfaceName , undefined, undefined, []);
         // ts.factory.createClassDeclaration()
         //     ts.factory.createDecorator()
         // )
-        return call;
+        return exportVariableStatement;
     }
 }
 _a = ThinglishInterfaceVisitor;
@@ -78,32 +99,32 @@ _a = ThinglishInterfaceVisitor;
     BaseVisitor.implementations.push(_a);
 })();
 const programTransformer = (program) => {
-    return (context) => {
-        return (sourceFile) => {
-            console.log("myTransformer", sourceFile.fileName);
-            const visitor = (node) => {
-                let visitorContext = { transformationContext: context, sourceFile, program };
-                let visitors = BaseVisitor.implementations.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext));
-                let myVisitor = visitors.filter(aTSNodeVisitor => {
-                    return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind;
-                })[0];
-                if (!myVisitor) {
-                    myVisitor = visitor;
-                }
-                else {
-                    console.log("  Node", ts.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''));
-                    node = myVisitor.visit(node);
-                }
-                // If it is a expression statement,
-                // if (ts.isInterfaceDeclaration(node)) {
-                //   // Return it twice.
-                //   // Effectively duplicating the statement
-                //   return [node, node];
-                // }
-                return ts.visitEachChild(node, visitor, context);
+    return {
+        before(context) {
+            return (sourceFile) => {
+                console.log("myTransformer", sourceFile.fileName);
+                const visitor = (node) => {
+                    let visitorContext = { transformationContext: context, sourceFile, program };
+                    let visitors = BaseVisitor.implementations.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext));
+                    let myVisitor = visitors.filter(aTSNodeVisitor => {
+                        return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind;
+                    })[0];
+                    if (TS.isInterfaceDeclaration(node)) {
+                        console.log("  Node", TS.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''));
+                    }
+                    if (!myVisitor) {
+                        myVisitor = visitor;
+                    }
+                    else {
+                        node = myVisitor.visit(node);
+                        //console.log("Interface declared")
+                    }
+                    // If it is a expression statement,
+                    return TS.visitEachChild(node, visitor, context);
+                };
+                return TS.visitNode(sourceFile, visitor);
             };
-            return ts.visitNode(sourceFile, visitor);
-        };
+        }
     };
 };
 //const myProgramTransformer = TSTransformerFactory.createProgrammTransformer(new NodeDuplicationVisitor());

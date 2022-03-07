@@ -1,4 +1,4 @@
-import * as TS from 'typescript';
+import * as ts from 'typescript';
 
 
 /**
@@ -6,9 +6,9 @@ import * as TS from 'typescript';
  */
 type VisitorContext = {
   //  checker: ts.TypeChecker
-  transformationContext: TS.TransformationContext
-  program: TS.Program
-  sourceFile: TS.SourceFile
+  transformationContext: ts.TransformationContext
+  program: ts.Program
+  sourceFile: ts.SourceFile
 };
 
 // class ThinglishTransformerFactory implements ts.CustomTransformers {
@@ -26,9 +26,9 @@ type VisitorContext = {
 
 interface TSNodeVisitor {
   context: VisitorContext
-  visit(node: TS.Node): TS.VisitResult<TS.Node>
-  test?(node: TS.Node): boolean
-  lift?(node: readonly TS.Node[]): TS.Node
+  visit(node: ts.Node): ts.VisitResult<ts.Node>
+  test?(node: ts.Node): boolean
+  lift?(node: readonly ts.Node[]): ts.Node
 }
 
 // class TSTransformerFactory {
@@ -74,22 +74,6 @@ interface TSNodeVisitor {
 
 // }
 
-// class ThinglishTransformerFactory implements ts.CustomTransformers {
-//     //getTransformer(context: ts.TransformationContext): ts.CustomTransformer { return new ThinglishInterfaceTransformer() }
-//         /** Custom transformers to evaluate before built-in .js transformations. */
-
-//         before(ctx: ts.TransformationContext) {
-//             let transformer: ts.CustomTransformer = new ThinglishInterfaceTransformer(ctx: ts.TransformationContext);
-//             console.log("bar")
-//             //throw "foo"
-//             this.transformer.transformSourceFile(node: ts.SourceFile)
-//             }
-//         }
-//         /** Custom transformers to evaluate after built-in .js transformations. */
-//         after(): (TransformerFactory<SourceFile> | CustomTransformerFactory)[];
-//         /** Custom transformers to evaluate after built-in .d.ts transformations. */
-//         afterDeclarations(): (TransformerFactory<Bundle | SourceFile> | CustomTransformerFactory)[];
-// }
 
 
 
@@ -103,7 +87,7 @@ abstract class BaseVisitor implements TSNodeVisitor {
     this.context = aContext;
   }
 
-  visit(node: TS.Node): TS.VisitResult<TS.Node> {
+  visit(node: ts.Node): ts.VisitResult<ts.Node> {
     return [node, node];
   }
   // test(node: ts.Node): boolean {
@@ -133,7 +117,7 @@ abstract class BaseVisitor implements TSNodeVisitor {
 class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
   static get validTSSyntaxKind() {
-    return TS.SyntaxKind.InterfaceDeclaration
+    return ts.SyntaxKind.InterfaceDeclaration
   }
 
   static {
@@ -143,39 +127,23 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
 
 
-  visit(node: TS.Node): TS.VisitResult<TS.Node> {
+  visit(node: ts.Node): ts.VisitResult<ts.Node> {
 
-    let interfaceName = (node as TS.InterfaceDeclaration).name.text + "InterfaceDescriptor";
+    let interfaceName = (node as ts.InterfaceDeclaration).name.text + "InterfaceDescriptor";
     //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
-    const cd = TS.factory.createIdentifier('InterfaceDescriptor');
+    const cd = ts.factory.createIdentifier('InterfaceDescriptor');
 
-    const call = TS.factory.createCallExpression(
-      TS.factory.createPropertyAccessExpression(
+    const call = ts.factory.createCallExpression(
+      ts.factory.createPropertyAccessExpression(
         cd, "register"),
       undefined,
       [
-        TS.factory.createStringLiteral("com.some.package"),
-        TS.factory.createStringLiteral("SomeComponentName"),
-        TS.factory.createStringLiteral("1.0.0"),
-        TS.factory.createStringLiteral(interfaceName)
-      
-        
+        ts.factory.createStringLiteral("com.some.package"),
+        ts.factory.createStringLiteral("SomeComponentName"),
+        ts.factory.createStringLiteral("1.0.0"),
+        ts.factory.createStringLiteral(interfaceName)
       ]
     )
-    const variableDeclaration = TS.factory.createVariableDeclaration(
-      interfaceName,
-      /* exclamationToken optional */ undefined,
-      /* type */ undefined,
-      /* initializer */call
-    )
-    const variableDeclarationList = TS.factory.createVariableDeclarationList(
-      [variableDeclaration], TS.NodeFlags.Const 
-    )
-    const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)],variableDeclarationList)
-
-
-
-
     //const dec = ts.factory.createDecorator(call)
     //const classDec = ts.factory.createClassDeclaration([dec], undefined, interfaceName , undefined, undefined, []);
 
@@ -184,28 +152,24 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     //     ts.factory.createDecorator()
     // )
 
-    return exportVariableStatement
+    return call
   }
 
-
-
-  
 }
 
 
 
 
-const programTransformer = (program: TS.Program) => {
+const programTransformer = (program: ts.Program) => {
 
 
   return {
+    before(context: ts.TransformationContext) {
 
-    before(context: TS.TransformationContext) {
-
-      return (sourceFile: TS.SourceFile) => {
+      return (sourceFile: ts.SourceFile) => {
         console.log("myTransformer", sourceFile.fileName)
 
-        const visitor = (node: TS.Node): TS.VisitResult<TS.Node> => {
+        const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
           let visitorContext: VisitorContext = { transformationContext: context, sourceFile, program }
           let visitors = BaseVisitor.implementations.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext))
 
@@ -213,8 +177,8 @@ const programTransformer = (program: TS.Program) => {
             return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind
           })[0]
 
-          if (TS.isInterfaceDeclaration(node)) {
-            console.log("  Node", TS.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''))
+          if (ts.isInterfaceDeclaration(node)) {
+            console.log("  Node", ts.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''))
           }
 
           if (!myVisitor) {
@@ -228,10 +192,9 @@ const programTransformer = (program: TS.Program) => {
           // If it is a expression statement,
 
 
-
-          return TS.visitEachChild(node, visitor, context);
+          return ts.visitEachChild(node, visitor, context);
         };
-        return TS.visitNode(sourceFile, visitor);
+        return ts.visitNode(sourceFile, visitor);
       }
     }
   }

@@ -1,5 +1,7 @@
-import * as ts from 'typescript';
-declare const programTransformer: (program: ts.Program) => (context: ts.TransformationContext) => (sourceFile: ts.SourceFile) => ts.SourceFile;
+import * as TS from 'typescript';
+declare const programTransformer: (program: TS.Program) => {
+    before(context: TS.TransformationContext): (sourceFile: TS.SourceFile) => TS.SourceFile;
+};
 /**
  * Anything other than a node transformer will need to specifiy its type as an export
  */

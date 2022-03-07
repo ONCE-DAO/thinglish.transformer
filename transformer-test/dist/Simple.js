@@ -1,5 +1,5 @@
 "use strict";
-InterfaceDescriptor.register("com.some.package", "SomeComponentName", "1.0.0", "ViewInterfaceDescriptor")
+export const ViewInterfaceDescriptor = InterfaceDescriptor.register("com.some.package", "SomeComponentName", "1.0.0", "ViewInterfaceDescriptor");
 class BaseView {
     static implementations = new Array();
     static discover() {
