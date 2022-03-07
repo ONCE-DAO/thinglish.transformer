@@ -1,6 +1,6 @@
-export const ViewInterfaceDescriptor = InterfaceDescriptor.register("com.some.package", "SomeComponentName", "1.0.0", "ViewInterfaceDescriptor");
-export const ItemViewInterfaceDescriptor = InterfaceDescriptor.register("com.some.package", "SomeComponentName", "1.0.0", "ItemViewInterfaceDescriptor");
-export const PersisenceManagerInterfaceDescriptor = InterfaceDescriptor.register("com.some.package", "SomeComponentName", "1.0.0", "PersisenceManagerInterfaceDescriptor");
+export const ViewInterfaceDescriptor = InterfaceDescriptor.register("tla.EAM", "component-transformer-test", "1.0.0", "ViewInterfaceDescriptor");
+export const ItemViewInterfaceDescriptor = InterfaceDescriptor.register("tla.EAM", "component-transformer-test", "1.0.0", "ItemViewInterfaceDescriptor");
+export const PersisenceManagerInterfaceDescriptor = InterfaceDescriptor.register("tla.EAM", "component-transformer-test", "1.0.0", "PersisenceManagerInterfaceDescriptor");
 // how to define all possible interfaces....
 //type InterfaceType = View | ItemView | PersisenceManager
 // class MyClassDescription {

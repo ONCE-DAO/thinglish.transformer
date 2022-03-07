@@ -3,6 +3,7 @@ var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.type = void 0;
 const TS = require("typescript");
+const fs_1 = require("fs");
 // class TSTransformerFactory {
 //   static createProgrammTransformer(thisNodeVisitor: TSNodeVisitor) {
 //     const programTransformer = (program: ts.Program) => {
@@ -56,6 +57,9 @@ class BaseVisitor {
     visit(node) {
         return [node, node];
     }
+    get componentDescriptor() {
+        return ComponentDescriptor.getComponentDescriptor4File(this.context.sourceFile);
+    }
 }
 BaseVisitor.implementations = new Array();
 // class MyCustomTransformer implements ts.CustomTransformer {
@@ -66,6 +70,45 @@ BaseVisitor.implementations = new Array();
 //     throw new Error('Method not implemented.');
 //   }
 // }
+class ComponentDescriptor {
+    constructor(packageJson) {
+        const packageJsonData = JSON.parse((0, fs_1.readFileSync)(packageJson).toString());
+        for (const key of ["package", "name", "version"]) {
+            if (packageJsonData[key] === undefined)
+                throw new Error("Missing package in the Package Json file");
+        }
+        this.package = packageJsonData.package;
+        this.name = packageJsonData.name;
+        this.version = packageJsonData.version;
+    }
+    static getComponentDescriptor4File(sourceFile) {
+        let filename = sourceFile.fileName;
+        let packageFile = this.getPackage4File(filename.split('/'), filename);
+        if (this._store[packageFile]) {
+            return this._store[packageFile];
+        }
+        else {
+            const componentDescriptor = new ComponentDescriptor(packageFile);
+            this._store[packageFile] = componentDescriptor;
+            return componentDescriptor;
+        }
+    }
+    static getPackage4File(path, originalFilename) {
+        //console.log("Get package 4 Path " + path);
+        if (path.length === 1)
+            throw new Error("Could not find a package.json File! " + originalFilename);
+        const packageFile = path.join('/') + '/package.json';
+        //console.log("Check: " + packageFile);
+        if ((0, fs_1.existsSync)(packageFile)) {
+            return packageFile;
+        }
+        else {
+            path.pop();
+            return this.getPackage4File(path, originalFilename);
+        }
+    }
+}
+ComponentDescriptor._store = {};
 class ThinglishInterfaceVisitor extends BaseVisitor {
     static get validTSSyntaxKind() {
         return TS.SyntaxKind.InterfaceDeclaration;
@@ -74,10 +117,11 @@ class ThinglishInterfaceVisitor extends BaseVisitor {
         let interfaceName = node.name.text + "InterfaceDescriptor";
         //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
         const cd = TS.factory.createIdentifier('InterfaceDescriptor');
+        let componentDescriptor = this.componentDescriptor;
         const call = TS.factory.createCallExpression(TS.factory.createPropertyAccessExpression(cd, "register"), undefined, [
-            TS.factory.createStringLiteral("com.some.package"),
-            TS.factory.createStringLiteral("SomeComponentName"),
-            TS.factory.createStringLiteral("1.0.0"),
+            TS.factory.createStringLiteral(componentDescriptor.package),
+            TS.factory.createStringLiteral(componentDescriptor.name),
+            TS.factory.createStringLiteral(componentDescriptor.version),
             TS.factory.createStringLiteral(interfaceName)
         ]);
         const variableDeclaration = TS.factory.createVariableDeclaration(interfaceName, 
@@ -105,18 +149,20 @@ const programTransformer = (program) => {
                 console.log("myTransformer", sourceFile.fileName);
                 const visitor = (node) => {
                     let visitorContext = { transformationContext: context, sourceFile, program };
-                    let visitors = BaseVisitor.implementations.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext));
-                    let myVisitor = visitors.filter(aTSNodeVisitor => {
-                        return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind;
-                    })[0];
+                    let visitorList = BaseVisitor.implementations.filter(aTSNodeVisitor => aTSNodeVisitor.validTSSyntaxKind === node.kind);
+                    let myVisitor = visitorList.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext));
+                    // let myVisitor = visitors.filter(aTSNodeVisitor => {
+                    //   return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind
+                    // })[0]
                     if (TS.isInterfaceDeclaration(node)) {
                         console.log("  Node", TS.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''));
                     }
-                    if (!myVisitor) {
-                        myVisitor = visitor;
-                    }
-                    else {
-                        node = myVisitor.visit(node);
+                    // if (!myVisitor) {
+                    //   myVisitor = visitor;
+                    // }
+                    // else {
+                    if (myVisitor.length > 0) {
+                        return myVisitor[0].visit(node);
                         //console.log("Interface declared")
                     }
                     // If it is a expression statement,

@@ -1,6 +1,7 @@
 {
   "name": "component-transformer-test",
   "version": "1.0.0",
+  "package": "tla.EAM",
   "description": "transform classes to reflective components test classes",
   "main": "dist/main.js",
   "scripts": {
