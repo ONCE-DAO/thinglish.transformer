@@ -9,7 +9,8 @@ type VisitorContext = {
   //  checker: ts.TypeChecker
   transformationContext: TS.TransformationContext
   program: TS.Program
-  sourceFile: TS.SourceFile
+  sourceFile: TS.SourceFile,
+  fileVisitor: ThinglishFileVisitor
 };
 
 // class ThinglishTransformerFactory implements ts.CustomTransformers {
@@ -143,6 +144,7 @@ class ComponentDescriptor {
   package: string;
   name: string;
   version: string;
+  packagePath: any;
 
   static getComponentDescriptor4File(sourceFile: TS.SourceFile): ComponentDescriptor {
     let filename = sourceFile.fileName;
@@ -162,8 +164,12 @@ class ComponentDescriptor {
   constructor(packageJson: string) {
     const packageJsonData = JSON.parse(readFileSync(packageJson).toString());
 
+    let path = packageJson.split('/');
+    path.pop();
+    this.packagePath = path.join('/');
+
     for (const key of ["package", "name", "version"]) {
-      if (packageJsonData[key] === undefined) throw new Error("Missing package in the Package Json file");
+      if (packageJsonData[key] === undefined) throw new Error(`Missing ${key} in the Package Json file => ${packageJson}`);
     }
     this.package = packageJsonData.package
     this.name = packageJsonData.name;
@@ -187,6 +193,7 @@ class ComponentDescriptor {
 
 }
 
+const onceIORModule = "ior:esm:git:tla.EAM.Once";
 class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
   static get validTSSyntaxKind() {
@@ -202,6 +209,30 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
   visit(node: TS.Node): TS.VisitResult<TS.Node> {
 
+
+    this.addImportInterfaceDescriptor();
+
+    const exportVariableStatement = this.getInterfaceDescriptorRegister(node);
+
+
+
+
+    //const dec = ts.factory.createDecorator(call)
+    //const classDec = ts.factory.createClassDeclaration([dec], undefined, interfaceName , undefined, undefined, []);
+
+
+    // ts.factory.createClassDeclaration()
+    //     ts.factory.createDecorator()
+    // )
+
+    return exportVariableStatement;
+  }
+
+
+
+
+
+  private getInterfaceDescriptorRegister(node: TS.Node) {
     let interfaceName = (node as TS.InterfaceDeclaration).name.text + "InterfaceDescriptor";
     //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
     const cd = TS.factory.createIdentifier('InterfaceDescriptor');
@@ -217,83 +248,96 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
         TS.factory.createStringLiteral(componentDescriptor.name),
         TS.factory.createStringLiteral(componentDescriptor.version),
         TS.factory.createStringLiteral(interfaceName)
-
-
       ]
-    )
+    );
     const variableDeclaration = TS.factory.createVariableDeclaration(
       interfaceName,
-      /* exclamationToken optional */ undefined,
-      /* type */ undefined,
-      /* initializer */call
-    )
+        /* exclamationToken optional */ undefined,
+        /* type */ undefined,
+        /* initializer */ call
+    );
     const variableDeclarationList = TS.factory.createVariableDeclarationList(
       [variableDeclaration], TS.NodeFlags.Const
-    )
-    const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList)
-
-
-
-
-    //const dec = ts.factory.createDecorator(call)
-    //const classDec = ts.factory.createClassDeclaration([dec], undefined, interfaceName , undefined, undefined, []);
-
-
-    // ts.factory.createClassDeclaration()
-    //     ts.factory.createDecorator()
-    // )
-
-    return exportVariableStatement
+    );
+    const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList);
+    return exportVariableStatement;
   }
 
+  private addImportInterfaceDescriptor() {
+    const importNode: TS.ImportDeclaration = TS.factory.createImportDeclaration(
+      undefined,
+      undefined,
+      TS.factory.createImportClause(
+        false,
+        undefined,
+        TS.factory.createNamedImports([TS.factory.createImportSpecifier(
+          false,
+          undefined,
+          TS.factory.createIdentifier("InterfaceDescriptor")
+        )])
+      ),
+      TS.factory.createParenthesizedExpression(TS.factory.createStringLiteral(onceIORModule)),
+      undefined
+    );
+    console.log(importNode);
 
-
-
+    this.context.fileVisitor.add2Header(`import InterfaceDescriptor ${onceIORModule}`, importNode);
+  }
 }
 
 
+class ThinglishFileVisitor {
+  constructor(private program: TS.Program, private context: TS.TransformationContext, public sourceFile: TS.SourceFile) {
 
+  }
+
+  add2Header(key: string, node: TS.ImportDeclaration | TS.ExportDeclaration): void {
+    this.addItionalHeader[key] = node;
+  }
+
+
+  addItionalHeader: Record<string, TS.ImportDeclaration | TS.ExportDeclaration> = {};
+
+  transform() {
+    console.log("myTransformer", this.sourceFile.fileName)
+
+    this.sourceFile = TS.visitNode(this.sourceFile, this.visitor.bind(this));
+    const header = Object.values(this.addItionalHeader);
+
+    this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...header, ...this.sourceFile.statements]);
+    return this.sourceFile;
+  }
+
+  visitor(node: TS.Node): TS.VisitResult<TS.Node> {
+    let visitorContext: VisitorContext = { transformationContext: this.context, sourceFile: this.sourceFile, program: this.program, fileVisitor: this }
+    let visitorList = BaseVisitor.implementations.filter(aTSNodeVisitor => aTSNodeVisitor.validTSSyntaxKind === node.kind);
+    if (visitorList.length > 1) throw new Error("Can not have more then one visitor");
+
+    let myVisitor = visitorList.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext))
+
+    if (TS.isInterfaceDeclaration(node)) {
+      console.log("  Node", TS.SyntaxKind[node.kind], this.sourceFile.text.substring(node.pos, node.end).replace('\n', ''))
+    }
+
+    if (myVisitor.length > 0) {
+      return myVisitor[0].visit(node)
+    }
+
+    return TS.visitEachChild(node, this.visitor.bind(this), this.context);
+  }
+
+}
 
 const programTransformer = (program: TS.Program) => {
-
 
   return {
 
     before(context: TS.TransformationContext) {
 
-      return (sourceFile: TS.SourceFile) => {
-        console.log("myTransformer", sourceFile.fileName)
+      return (sourceFile: TS.SourceFile): TS.SourceFile => {
 
-        const visitor = (node: TS.Node): TS.VisitResult<TS.Node> => {
-          let visitorContext: VisitorContext = { transformationContext: context, sourceFile, program }
-          let visitorList = BaseVisitor.implementations.filter(aTSNodeVisitor => aTSNodeVisitor.validTSSyntaxKind === node.kind);
+        return new ThinglishFileVisitor(program, context, sourceFile).transform();
 
-          let myVisitor = visitorList.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext))
-
-          // let myVisitor = visitors.filter(aTSNodeVisitor => {
-          //   return aTSNodeVisitor.constructor.validTSSyntaxKind == node.kind
-          // })[0]
-
-          if (TS.isInterfaceDeclaration(node)) {
-            console.log("  Node", TS.SyntaxKind[node.kind], sourceFile.text.substring(node.pos, node.end).replace('\n', ''))
-          }
-
-          // if (!myVisitor) {
-          //   myVisitor = visitor;
-          // }
-          // else {
-          if (myVisitor.length > 0) {
-            return myVisitor[0].visit(node)
-            //console.log("Interface declared")
-          }
-
-          // If it is a expression statement,
-
-
-
-          return TS.visitEachChild(node, visitor, context);
-        };
-        return TS.visitNode(sourceFile, visitor);
       }
     }
   }
