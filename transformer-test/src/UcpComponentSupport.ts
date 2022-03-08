@@ -91,3 +91,12 @@ class DefaultItemView implements View {
     name: String = typeof this;
 }
 
+interface View2 extends View {
+    name2: String;
+}
+
+class DefaultItemView2 implements View2 {
+    name2: String = "hallo";
+
+    name: String = typeof this;
+}

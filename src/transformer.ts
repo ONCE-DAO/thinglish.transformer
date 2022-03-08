@@ -108,6 +108,7 @@ class ComponentDescriptor {
 const onceIORModule = "ior:esm:git:tla.EAM.Once";
 
 
+
 class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
   static get validTSSyntaxKind(): TS.SyntaxKind {
@@ -123,7 +124,122 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     this.addImportInterfaceDescriptor();
     const exportVariableStatement = this.getInterfaceDescriptorRegister(node);
 
+    //console.log(node);
+
     return exportVariableStatement;
+  }
+
+
+  private checkHeritageClause(tsClass: TS.InterfaceDeclaration, innerCallExpression: TS.CallExpression): TS.CallExpression {
+    let returnCallExpression: TS.CallExpression = innerCallExpression;
+
+    console.log("interface: checkHeritageClause");
+    if (tsClass.heritageClauses) {
+      console.log("interface: has heritageClauses");
+
+      tsClass.heritageClauses.forEach(element => {
+        console.log("element:", element)
+
+        element.types.forEach((type: TS.ExpressionWithTypeArguments) => {
+
+          const identifier = type.expression as TS.Identifier;
+          console.log("  Extends  Interface:", identifier.text)
+
+          returnCallExpression = this.addExtendDeceleration(identifier, returnCallExpression);
+
+        })
+      });
+    }
+    return returnCallExpression;
+  }
+
+
+
+  private _getUpperImportDeclaration(object: TS.Node | undefined): TS.ImportDeclaration | undefined {
+    if (object === undefined) {
+      return undefined
+    } else if (TS.isImportDeclaration(object)) {
+      return object;
+    } else if ("parent" in object) {
+      return this._getUpperImportDeclaration(object.parent)
+    } else {
+      throw new Error("Not implemented yet 5");
+
+    }
+  }
+
+  addExtendDeceleration(identifier: TS.Identifier, innerCallExpression: TS.CallExpression): TS.CallExpression {
+
+    const typeChecker = this.context.program.getTypeChecker();
+    let interfaceName = identifier.escapedText as string;
+
+    let symbol = typeChecker.getSymbolAtLocation(identifier);
+    let importPath = "";
+
+
+    let decorator = symbol?.declarations?.[0];
+    if (!decorator) {
+      return innerCallExpression;
+    } else if (TS.isImportSpecifier(decorator)) {
+      let myImport = this._getUpperImportDeclaration(decorator);
+
+      if (myImport && TS.isImportDeclaration(myImport)) {
+        importPath = myImport.moduleSpecifier.getText();
+      } else {
+        throw new Error("Not implemented yet 1");
+      }
+
+    } else if (TS.isClassDeclaration(decorator)) {
+      importPath = ".";
+    } else if (TS.isInterfaceDeclaration(decorator)) {
+      importPath = ".";
+
+    } else {
+      console.log("Error Symbol " + interfaceName)
+      console.log(symbol);
+      throw new Error("Not implemented yet 10");
+
+    }
+
+    if (importPath.startsWith("ior:")) {
+      const matchResult = importPath.match(/^ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
+      if (matchResult) {
+        return TS.factory.createCallExpression(
+          TS.factory.createPropertyAccessExpression(
+            innerCallExpression,
+            TS.factory.createIdentifier("addExtension")
+          ),
+          undefined,
+          [
+            TS.factory.createStringLiteral(matchResult[1]),
+            TS.factory.createStringLiteral(matchResult[2]),
+            TS.factory.createStringLiteral(matchResult[3]),
+            TS.factory.createStringLiteral(interfaceName)
+
+          ]
+        )
+
+      }
+      throw new Error("Could not match import String: " + importPath);
+
+    }
+    const sourcePath = path.dirname(this.context.sourceFile.fileName) + '/' + path.dirname(importPath);
+    const componentDescriptor = ComponentDescriptor.getComponentDescriptor4File(sourcePath);
+
+    return TS.factory.createCallExpression(
+      TS.factory.createPropertyAccessExpression(
+        innerCallExpression,
+        TS.factory.createIdentifier("addExtension")
+      ),
+      undefined,
+      [
+        TS.factory.createStringLiteral(componentDescriptor.package),
+        TS.factory.createStringLiteral(componentDescriptor.name),
+        TS.factory.createStringLiteral(componentDescriptor.version),
+        TS.factory.createStringLiteral(interfaceName)
+
+      ]
+    )
   }
 
   private getInterfaceDescriptorRegister(node: TS.InterfaceDeclaration) {
@@ -133,7 +249,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
     let componentDescriptor = this.componentDescriptor;
 
-    const call = TS.factory.createCallExpression(
+    let call = TS.factory.createCallExpression(
       TS.factory.createPropertyAccessExpression(
         cd, "register"),
       undefined,
@@ -144,6 +260,10 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
         TS.factory.createStringLiteral(interfaceName)
       ]
     );
+
+    // Check for extends
+    call = this.checkHeritageClause(node, call);
+
     const variableDeclaration = TS.factory.createVariableDeclaration(
       interfaceName,
         /* exclamationToken optional */ undefined,
@@ -196,29 +316,23 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
   visit(node: TS.ClassDeclaration): TS.VisitResult<TS.Node> {
     this.addImportClassDescriptor();
 
-    let fileVisitor = this.context.fileVisitor;
-
     let descriptor = this.checkHeritageClause(node);
 
     descriptor.push(this.getDecoratorFilename());
     descriptor.push(this.getDecoratorRegister());
 
-    if (node.heritageClauses) {
+    node = TS.factory.updateClassDeclaration(
+      node,
+      descriptor,
+      node.modifiers,
+      node.name,
+      node.typeParameters,
+      node.heritageClauses,
+      node.members
+    );
 
-      node = TS.factory.updateClassDeclaration(
-        node,
-        descriptor,
-        node.modifiers,
-        node.name,
-        node.typeParameters,
-        node.heritageClauses,
-        node.members
-      );
-    }
-
-    const childResult = TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
-
-    return [childResult];
+    const fileVisitor = this.context.fileVisitor;
+    return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
 
   }
 
@@ -265,7 +379,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
       }
 
-
+    } else if (decorator && TS.isInterfaceDeclaration(decorator)) {
+      importPath = ".";
     } else if (decorator && TS.isClassDeclaration(decorator)) {
       //Class Declaration
       return;
@@ -287,9 +402,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
     }
 
     const sourcePath = path.dirname(this.context.sourceFile.fileName) + '/' + path.dirname(importPath);
-
     const componentDescriptor = ComponentDescriptor.getComponentDescriptor4File(sourcePath);
-
 
     return this.descriptorCreator(["ClassDescriptor", "addInterfaces"], [componentDescriptor.package, componentDescriptor.name, componentDescriptor.version, interfaceName])
   }
