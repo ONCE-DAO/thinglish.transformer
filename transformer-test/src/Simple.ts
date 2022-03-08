@@ -1,4 +1,7 @@
 import { View } from "./interfaces/ucpInterfaces"
+import SomeView from "./interfaces/ucpInterfaces"
+
+let x = SomeView;
 
 //import { TestView } from "ior:esm:git:tla.EAM.Once"
 

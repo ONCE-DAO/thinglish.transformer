@@ -126,7 +126,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
     //console.log(node);
 
-    return exportVariableStatement;
+    return [exportVariableStatement, node];
   }
 
 
@@ -278,7 +278,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   private addImportInterfaceDescriptor() {
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src') || ".";
+    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
+    if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
     const onceIORModule = relativePath;
     const importNode: TS.ImportDeclaration = TS.factory.createImportDeclaration(
@@ -298,8 +299,56 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     );
     //console.log(importNode);
 
-    this.context.fileVisitor.add2Header(`import InterfaceDescriptor ${onceIORModule}`, importNode);
+    this.context.fileVisitor.add2Header(`InterfaceDescriptor`, importNode);
   }
+}
+
+
+class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
+
+  static get validTSSyntaxKind(): TS.SyntaxKind {
+    return TS.SyntaxKind.ImportDeclaration
+  }
+
+  static {
+    BaseVisitor.implementations.push(this);
+  }
+
+  private readonly allowedExtensions = ['.interface', '.class']
+
+  visit(node: TS.ImportDeclaration): TS.VisitResult<TS.Node> {
+
+    return node;
+
+    // if (this.context.sourceFile.fileName.match('/test/')) {
+    //   console.log("No update for import on File: " + this.context.sourceFile.fileName)
+    //   return node;
+    // }
+
+    // console.log("my transformer" + node.kind)
+    // if (this.shouldMutateModuleSpecifier(node)) {
+    //   if (TS.isImportDeclaration(node)) {
+    //     const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
+    //     return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
+    //   }
+    // }
+
+    // return node
+  }
+
+  shouldMutateModuleSpecifier(node: TS.Node): node is (TS.ImportDeclaration | TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
+    if (!TS.isImportDeclaration(node) && !TS.isExportDeclaration(node)) return false
+    if (node.moduleSpecifier === undefined) return false
+    // only when module specifier is valid
+    if (!TS.isStringLiteral(node.moduleSpecifier)) return false
+    // only when path is relative
+    if (!node.moduleSpecifier.text.startsWith('./') && !node.moduleSpecifier.text.startsWith('../')) return false
+    // only when module specifier has no extension
+    const ext = path.extname(node.moduleSpecifier.text)
+    if (ext !== '' && !this.allowedExtensions.includes(ext)) return false
+    return true
+  }
+
 }
 
 class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
@@ -466,7 +515,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   private addImportClassDescriptor() {
     path.dirname(this.context.sourceFile.fileName)
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src') || ".";
+    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
+    if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
     //console.log("FILE: " + this.context.sourceFile.fileName);
     //console.log(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src', relativePath);
@@ -477,18 +527,14 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
       undefined,
       TS.factory.createImportClause(
         false,
+        TS.factory.createIdentifier("ClassDescriptor"),
         undefined,
-        TS.factory.createNamedImports([TS.factory.createImportSpecifier(
-          false,
-          undefined,
-          TS.factory.createIdentifier("ClassDescriptor")
-        )])
       ),
       TS.factory.createStringLiteral(onceIORModule),
       undefined
     );
 
-    this.context.fileVisitor.add2Header(`import ClassDescriptor ${onceIORModule}`, importNode);
+    this.context.fileVisitor.add2Header(`ClassDescriptor`, importNode);
   }
 }
 
@@ -498,20 +544,36 @@ class ThinglishFileVisitor {
 
   }
 
-  add2Header(key: string, node: TS.ImportDeclaration | TS.ExportDeclaration): void {
+  add2Header(key: string, node: TS.ImportDeclaration): void {
     this.addItionalHeader[key] = node;
   }
 
 
-  addItionalHeader: Record<string, TS.ImportDeclaration | TS.ExportDeclaration> = {};
+  addItionalHeader: Record<string, TS.ImportDeclaration> = {};
 
   transform() {
     console.log("myTransformer", this.sourceFile.fileName)
 
     this.sourceFile = TS.visitNode(this.sourceFile, this.visitor.bind(this));
-    const header = Object.values(this.addItionalHeader);
 
-    this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...header, ...this.sourceFile.statements]);
+    let existingImports = this.sourceFile.statements.filter(x => TS.isImportDeclaration(x)) as TS.ImportDeclaration[];
+
+    let allImportVariables: string[] = [];
+
+    existingImports.forEach(importDeclaration => {
+      const elements = (importDeclaration.importClause?.namedBindings as TS.NamedImports)?.elements || [];
+      for (const element of elements) {
+        allImportVariables.push(element.name.escapedText as string);
+      }
+      //console.log(importDeclaration.importClause?.name);
+      const defaultImport = importDeclaration.importClause?.name?.escapedText;
+      if (defaultImport !== undefined) allImportVariables.push(defaultImport);
+    })
+    console.log("existingImports:  " + this.sourceFile.fileName, allImportVariables);
+
+    let newImports = Object.keys(this.addItionalHeader).filter(key => !allImportVariables.includes(key)).map(key => this.addItionalHeader[key])
+
+    this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...newImports, ...this.sourceFile.statements]);
     return this.sourceFile;
   }
 

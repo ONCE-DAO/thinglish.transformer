@@ -1,4 +1,5 @@
-
+let SomeView = "";
+export default SomeView;
 export interface View extends Object {
     name: String
 }
