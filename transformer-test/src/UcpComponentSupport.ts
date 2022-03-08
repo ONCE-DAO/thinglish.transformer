@@ -1,22 +1,9 @@
 
 
-
-interface View {
-    name: String
-}
-
-
-interface ItemView extends View{
-    name: String
-}
-
-
-
-interface PersisenceManager {
-}
-
 // how to define all possible interfaces....
 //type InterfaceType = View | ItemView | PersisenceManager
+
+import { View } from "./interfaces/ucpInterfaces";
 
 
 
@@ -55,7 +42,7 @@ interface PersisenceManager {
 
 export class UcpComponent /* extends BaseThing<UcpComponent> */ {
 
-    private controller:UcpController=new UcpController();
+    private controller: UcpController = new UcpController();
 
     constructor() {
         //super();
@@ -76,7 +63,7 @@ export class UcpComponent /* extends BaseThing<UcpComponent> */ {
 }
 
 class UcpController {
-//    private relatedObjectStore: RelatedObjectStore=new RelatedObjectStore();
+    //    private relatedObjectStore: RelatedObjectStore=new RelatedObjectStore();
 
     //                         what is this, if it is not a simple string
     //                         vvvvvvvvvvvvv
@@ -101,6 +88,6 @@ export class Person extends UcpComponent {
 }
 
 class DefaultItemView implements View {
-    name: String=typeof this;
+    name: String = typeof this;
 }
 

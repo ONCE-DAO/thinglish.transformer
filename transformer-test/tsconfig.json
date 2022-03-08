@@ -106,5 +106,5 @@
   ],
   "include": [
     "./src/*"
-  ]
+, "src/interfacts/ucpInterfaces.ts"  ]
 }
