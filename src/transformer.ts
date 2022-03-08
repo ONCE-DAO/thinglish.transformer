@@ -15,88 +15,12 @@ type VisitorContext = {
   fileVisitor: ThinglishFileVisitor
 };
 
-// class ThinglishTransformerFactory implements ts.CustomTransformers {
-//     //getTransformer(context: ts.TransformationContext): ts.CustomTransformer { return new ThinglishInterfaceTransformer() }
-//         /** Custom transformers to evaluate before built-in .js transformations. */
-
-//         before(ctx: ts.TransformationContext) {
-//             return TSTransformerFactory.createNodeTransformer(new NodeDuplicationVisitor())
-//         }
-//         /** Custom transformers to evaluate after built-in .js transformations. */
-//         after(): (TransformerFactory<SourceFile> | CustomTransformerFactory)[];
-//         /** Custom transformers to evaluate after built-in .d.ts transformations. */
-//         afterDeclarations(): (TransformerFactory<Bundle | SourceFile> | CustomTransformerFactory)[];
-// }
-
 interface TSNodeVisitor {
   context: VisitorContext
   visit(node: TS.Node): TS.VisitResult<TS.Node>
   test?(node: TS.Node): boolean
   lift?(node: readonly TS.Node[]): TS.Node
 }
-
-// class TSTransformerFactory {
-//   static createProgrammTransformer(thisNodeVisitor: TSNodeVisitor) {
-//     const programTransformer = (program: ts.Program) => {
-//       thisNodeVisitor.context.program = program;
-//       return TSTransformerFactory.createTransformerContext(thisNodeVisitor)
-
-//     }
-//     return programTransformer;
-//   }
-
-
-//   static createTransformerContext(thisNodeVisitor: TSNodeVisitor) {
-//     const transformerContext = (context: ts.TransformationContext) => {
-//       thisNodeVisitor.context.transformationContext = context;
-//       return TSTransformerFactory.createSourceFileTransformer(thisNodeVisitor)
-
-//     }
-//     return programTransformer;
-//   }
-
-
-
-//   static createSourceFileTransformer(thisNodeVisitor: TSNodeVisitor) {
-//     const sourceFileTransformer = (sourceFile: ts.SourceFile) => {
-//       thisNodeVisitor.context.sourceFile = sourceFile;
-
-//       let nodeVisitor = TSTransformerFactory.createNodeTransformer(thisNodeVisitor)
-
-//       return ts.visitNode(sourceFile, thisNodeVisitor.visit,thisNodeVisitor.test, thisNodeVisitor.lift);
-//     }
-//     return sourceFileTransformer;
-//   }
-
-//   static createNodeTransformer(thisNodeVisitor: TSNodeVisitor) {
-//     const visitor = (node: ts.Node, { checker, transformationContext: context }: VisitorContext): ts.Node => {
-//       //checker.typeToString(someTSType,node)
-//       return ts.visitEachChild(node, thisNodeVisitor.visit, context);
-//     }
-//     return visitor;
-//   }
-
-// }
-
-// class ThinglishTransformerFactory implements ts.CustomTransformers {
-//     //getTransformer(context: ts.TransformationContext): ts.CustomTransformer { return new ThinglishInterfaceTransformer() }
-//         /** Custom transformers to evaluate before built-in .js transformations. */
-
-//         before(ctx: ts.TransformationContext) {
-//             let transformer: ts.CustomTransformer = new ThinglishInterfaceTransformer(ctx: ts.TransformationContext);
-//             console.log("bar")
-//             //throw "foo"
-//             this.transformer.transformSourceFile(node: ts.SourceFile)
-//             }
-//         }
-//         /** Custom transformers to evaluate after built-in .js transformations. */
-//         after(): (TransformerFactory<SourceFile> | CustomTransformerFactory)[];
-//         /** Custom transformers to evaluate after built-in .d.ts transformations. */
-//         afterDeclarations(): (TransformerFactory<Bundle | SourceFile> | CustomTransformerFactory)[];
-// }
-
-
-
 
 
 abstract class BaseVisitor implements TSNodeVisitor {
@@ -117,30 +41,8 @@ abstract class BaseVisitor implements TSNodeVisitor {
   static get validTSSyntaxKind(): TS.SyntaxKind {
     throw new Error("Not implemented yet");
   }
-  // test(node: ts.Node): boolean {
-  //   return true;
-  // }
-  // lift(nodes: readonly ts.Node[]): ts.Node  {
-  //   return nodes.reduce((previousValue, currentValue, currentIndex, nodes) => { 
-  //     let node:ts.Node = currentValue
-  //     return node
-  //   });
-  // }
 
 }
-
-
-// class MyCustomTransformer implements ts.CustomTransformer {
-//   transformSourceFile(node: ts.SourceFile): ts.SourceFile {
-//     return TSTransformerFactory.createSourceFileTransformer(new NodeDuplicationVisitor())
-//   }
-//   transformBundle(node: ts.Bundle): ts.Bundle {
-//     throw new Error('Method not implemented.');
-//   }
-
-// }
-
-
 
 class ComponentDescriptor {
 
@@ -274,7 +176,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       TS.factory.createStringLiteral(onceIORModule),
       undefined
     );
-    console.log(importNode);
+    //console.log(importNode);
 
     this.context.fileVisitor.add2Header(`import InterfaceDescriptor ${onceIORModule}`, importNode);
   }
@@ -375,9 +277,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
     }
 
     if (importPath.startsWith("ior:")) {
-      let matchResult = importPath.match(/^ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
+      const matchResult = importPath.match(/^ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
       if (matchResult) {
-        matchResult[1], matchResult[2], matchResult[3]
         return this.descriptorCreator(["ClassDescriptor", "addInterfaces"], [matchResult[1], matchResult[2], matchResult[3], interfaceName])
 
       }
@@ -410,55 +311,28 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   private checkHeritageClause(tsClass: TS.ClassDeclaration): TS.Decorator[] {
+    let decorator: TS.Decorator[] = Array.from(tsClass?.decorators || []);
 
     if (tsClass.heritageClauses) {
-      let decorator: TS.Decorator[] = tsClass.decorators?.concat([]) || []
 
       tsClass.heritageClauses.forEach(element => {
-        console.log("element:");
+        //console.log("element:", element)
 
-        console.log(element)
-        console.log(element.getText())
         //TODO Find a better way to find out that it is implements
         if (!element.getText().startsWith("implements")) return;
 
         element.types.forEach((type: TS.ExpressionWithTypeArguments) => {
 
-
           const identifier = type.expression as TS.Identifier;
-          let interfaceName = identifier.text
-          console.log("    Interface:", interfaceName)
+          console.log("    Interface:", identifier.text)
 
-          //const typeChecker = this.context.program.getTypeChecker();
-          // let symbol = typeChecker.getSymbolAtLocation(type.expression);
-
-          // if (symbol?.declarations?.[0].kind === TS.SyntaxKind.ImportSpecifier) {
-          //   let myImport = symbol?.declarations?.[0]?.parent?.parent?.parent;
-          //   console.log("is Import !!!!!!");
-          //   console.log("symbol:");
-
-          //   if (TS.isImportDeclaration(myImport)) {
-          //     console.log("isImportDeclaration !!!!!!");
-
-          //     console.log(myImport.moduleSpecifier.getText())
-          //   }
-
-
-          // }
-          //console.log(type.expression);
           let innerDecorator = this.getDecoratorInterface(identifier)
-          if (innerDecorator) decorator.push(innerDecorator);
+          if (innerDecorator !== undefined) decorator.push(innerDecorator);
 
         })
       });
-      return decorator;
-    } else {
-      if (tsClass.decorators) {
-        return Array.from(tsClass.decorators);
-      }
-      return [];
-
     }
+    return decorator;
   }
 
   private nodeIdentifier(propertyAccessExpression: string[]): TS.Identifier | TS.PropertyAccessExpression {
@@ -526,26 +400,6 @@ class ThinglishFileVisitor {
 
   visitor(node: TS.Node): TS.VisitResult<TS.Node> {
 
-
-    // if (TS.isImportDeclaration(node) && TS.isStringLiteral(node.moduleSpecifier)) {
-    //   const typeChecker = this.program.getTypeChecker();
-    //   const importSymbol = typeChecker.getSymbolAtLocation(node.moduleSpecifier);
-    //   if (importSymbol) {
-    //     const exportSymbols = typeChecker.getExportsOfModule(importSymbol);
-
-    //     exportSymbols.forEach(symbol =>
-    //       console.log(
-    //         `found "${symbol.escapedName
-    //         }" export with value "${symbol.valueDeclaration?.getText()}"`
-    //       )
-
-    //     );
-    //   }
-
-    //   return node;
-    // }
-
-
     let visitorContext: VisitorContext = { transformationContext: this.context, sourceFile: this.sourceFile, program: this.program, fileVisitor: this }
     let visitorList = BaseVisitor.implementations.filter(aTSNodeVisitor => aTSNodeVisitor.validTSSyntaxKind === node.kind);
     if (visitorList.length > 1) throw new Error("Can not have more then one visitor");
@@ -580,10 +434,6 @@ const programTransformer = (program: TS.Program) => {
   }
 }
 
-
-
-
-//const myProgramTransformer = TSTransformerFactory.createProgrammTransformer(new NodeDuplicationVisitor());
 
 /**
  * Anything other than a node transformer will need to specifiy its type as an export
