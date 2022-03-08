@@ -138,7 +138,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       console.log("interface: has heritageClauses");
 
       tsClass.heritageClauses.forEach(element => {
-        console.log("element:", element)
+        //console.log("element:", element)
 
         element.types.forEach((type: TS.ExpressionWithTypeArguments) => {
 
@@ -180,7 +180,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     let decorator = symbol?.declarations?.[0];
     if (!decorator) {
       return innerCallExpression;
-    } else if (TS.isImportSpecifier(decorator)) {
+    } else if (TS.isImportSpecifier(decorator) || TS.isImportClause(decorator)) {
       let myImport = this._getUpperImportDeclaration(decorator);
 
       if (myImport && TS.isImportDeclaration(myImport)) {
@@ -316,6 +316,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
   visit(node: TS.ClassDeclaration): TS.VisitResult<TS.Node> {
     this.addImportClassDescriptor();
 
+    console.log("Class: " + node.name?.escapedText)
+
     let descriptor = this.checkHeritageClause(node);
 
     descriptor.push(this.getDecoratorFilename());
@@ -369,7 +371,9 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
 
     let decorator = symbol?.declarations?.[0];
-    if (decorator && TS.isImportSpecifier(decorator)) {
+    if (!decorator) {
+      return;
+    } else if (TS.isImportSpecifier(decorator) || TS.isImportClause(decorator)) {
       let myImport = this._getUpperImportDeclaration(decorator);
 
       if (myImport && TS.isImportDeclaration(myImport)) {
@@ -379,9 +383,9 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
       }
 
-    } else if (decorator && TS.isInterfaceDeclaration(decorator)) {
+    } else if (TS.isInterfaceDeclaration(decorator)) {
       importPath = ".";
-    } else if (decorator && TS.isClassDeclaration(decorator)) {
+    } else if (TS.isClassDeclaration(decorator)) {
       //Class Declaration
       return;
     } else {
@@ -437,7 +441,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
         element.types.forEach((type: TS.ExpressionWithTypeArguments) => {
 
           const identifier = type.expression as TS.Identifier;
-          console.log("    Interface:", identifier.text)
+          console.log("   implements Interface:", identifier.text)
 
           let innerDecorator = this.getDecoratorInterface(identifier)
           if (innerDecorator !== undefined) decorator.push(innerDecorator);
