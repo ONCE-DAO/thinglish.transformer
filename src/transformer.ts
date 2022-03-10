@@ -2,7 +2,7 @@ import * as TS from 'typescript';
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path = require('path');
 
-
+const debug = false;
 
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
@@ -91,10 +91,10 @@ class ComponentDescriptor {
 
 
   static getPackage4File(path: string[], originalFilename: string): string {
-    //console.log("Get package 4 Path " + path);
+    //if (debug) console.log("Get package 4 Path " + path);
     if (path.length === 1) throw new Error("Could not find a package.json File! " + originalFilename)
     const packageFile = path.join('/') + '/package.json';
-    //console.log("Check: " + packageFile);
+    //if (debug) console.log("Check: " + packageFile);
     if (existsSync(packageFile)) {
       return packageFile;
     } else {
@@ -124,7 +124,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     this.addImportInterfaceDescriptor();
     const exportVariableStatement = this.getInterfaceDescriptorRegister(node);
 
-    //console.log(node);
+    //if (debug) console.log(node);
 
     return [exportVariableStatement, node];
   }
@@ -133,17 +133,17 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   private checkHeritageClause(tsClass: TS.InterfaceDeclaration, innerCallExpression: TS.CallExpression): TS.CallExpression {
     let returnCallExpression: TS.CallExpression = innerCallExpression;
 
-    console.log("interface: checkHeritageClause");
+    if (debug) console.log("interface: checkHeritageClause");
     if (tsClass.heritageClauses) {
-      console.log("interface: has heritageClauses");
+      if (debug) console.log("interface: has heritageClauses");
 
       tsClass.heritageClauses.forEach(element => {
-        //console.log("element:", element)
+        //if (debug) console.log("element:", element)
 
         element.types.forEach((type: TS.ExpressionWithTypeArguments) => {
 
           const identifier = type.expression as TS.Identifier;
-          console.log("  Extends  Interface:", identifier.text)
+          if (debug) console.log("  Extends  Interface:", identifier.text)
 
           returnCallExpression = this.addExtendDeceleration(identifier, returnCallExpression);
 
@@ -195,8 +195,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       importPath = ".";
 
     } else {
-      console.log("Error Symbol " + interfaceName)
-      console.log(symbol);
+      if (debug) console.log("Error Symbol " + interfaceName)
+      if (debug) console.log(symbol);
       throw new Error("Not implemented yet 10");
 
     }
@@ -274,7 +274,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       [variableDeclaration], TS.NodeFlags.Const
     );
     const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList);
-    return exportVariableStatement;
+    return variableDeclarationList;
   }
 
   private addImportInterfaceDescriptor() {
@@ -297,7 +297,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       TS.factory.createStringLiteral(onceIORModule),
       undefined
     );
-    //console.log(importNode);
+    //if (debug) console.log(importNode);
 
     this.context.fileVisitor.add2Header(`InterfaceDescriptor`, importNode);
   }
@@ -321,11 +321,11 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
     return node;
 
     // if (this.context.sourceFile.fileName.match('/test/')) {
-    //   console.log("No update for import on File: " + this.context.sourceFile.fileName)
+    //   if (debug) console.log("No update for import on File: " + this.context.sourceFile.fileName)
     //   return node;
     // }
 
-    // console.log("my transformer" + node.kind)
+    // if (debug) console.log("my transformer" + node.kind)
     // if (this.shouldMutateModuleSpecifier(node)) {
     //   if (TS.isImportDeclaration(node)) {
     //     const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
@@ -364,8 +364,14 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   visit(node: TS.ClassDeclaration): TS.VisitResult<TS.Node> {
     this.addImportClassDescriptor();
+    const fileVisitor = this.context.fileVisitor;
 
-    console.log("Class: " + node.name?.escapedText)
+    if (debug) console.log("Class: " + node.name?.escapedText);
+
+    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor")) {
+      if (debug) console.log("Cancel ClassDescriptor");
+      return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
+    }
 
     let descriptor = this.checkHeritageClause(node);
 
@@ -382,7 +388,6 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
       node.members
     );
 
-    const fileVisitor = this.context.fileVisitor;
     return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
 
   }
@@ -394,7 +399,32 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
 
   getDecoratorFilename(): TS.Decorator {
-    return this.descriptorCreator(["ClassDescriptor", "setFilePath"], [TS.factory.createIdentifier("__filename")])
+    // let fileNameNode = TS.factory.createExpressionStatement(TS.factory.createPropertyAccessExpression(
+    //   TS.factory.createMetaProperty(
+    //     TS.SyntaxKind.ImportKeyword,
+    //     TS.factory.createIdentifier("meta")
+    //   ),
+    //   TS.factory.createIdentifier("url")
+    // ));
+
+    return TS.factory.createDecorator(
+      TS.factory.createCallExpression(
+        TS.factory.createPropertyAccessExpression(
+          TS.factory.createIdentifier("ClassDescriptor"),
+          TS.factory.createIdentifier("setFilePath")
+        ),
+        undefined,
+        [TS.factory.createPropertyAccessExpression(
+          TS.factory.createMetaProperty(
+            TS.SyntaxKind.ImportKeyword,
+            TS.factory.createIdentifier("meta")
+          ),
+          TS.factory.createIdentifier("url")
+        )]
+      )
+    );
+
+    //return this.descriptorCreator(["ClassDescriptor", "setFilePath"], [fileNameNode])
   }
 
   private _getUpperImportDeclaration(object: TS.Node | undefined): TS.ImportDeclaration | undefined {
@@ -438,8 +468,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
       //Class Declaration
       return;
     } else {
-      console.log("Error Symbol " + interfaceName)
-      console.log(symbol);
+      if (debug) console.log("Error Symbol " + interfaceName)
+      if (debug) console.log(symbol);
       throw new Error("Not implemented yet 2");
 
     }
@@ -460,7 +490,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
     return this.descriptorCreator(["ClassDescriptor", "addInterfaces"], [componentDescriptor.package, componentDescriptor.name, componentDescriptor.version, interfaceName])
   }
 
-  private descriptorCreator(propertyAccessExpression: string[], stringLiteral: (string | TS.Identifier)[]) {
+  private descriptorCreator(propertyAccessExpression: string[], stringLiteral: (string | TS.Identifier | TS.ExpressionStatement)[]) {
 
     return TS.factory.createDecorator(TS.factory.createCallExpression(
       this.nodeIdentifier(propertyAccessExpression),
@@ -482,7 +512,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
     if (tsClass.heritageClauses) {
 
       tsClass.heritageClauses.forEach(element => {
-        //console.log("element:", element)
+        //if (debug) console.log("element:", element)
 
         //TODO Find a better way to find out that it is implements
         if (!element.getText().startsWith("implements")) return;
@@ -490,7 +520,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
         element.types.forEach((type: TS.ExpressionWithTypeArguments) => {
 
           const identifier = type.expression as TS.Identifier;
-          console.log("   implements Interface:", identifier.text)
+          if (debug) console.log("   implements Interface:", identifier.text)
 
           let innerDecorator = this.getDecoratorInterface(identifier)
           if (innerDecorator !== undefined) decorator.push(innerDecorator);
@@ -514,12 +544,15 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
 
   private addImportClassDescriptor() {
+
+    if (this.context.sourceFile.fileName.match("ClassDescriptor")) return;
+
     path.dirname(this.context.sourceFile.fileName)
     let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
     if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
-    //console.log("FILE: " + this.context.sourceFile.fileName);
-    //console.log(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src', relativePath);
+    //if (debug) console.log("FILE: " + this.context.sourceFile.fileName);
+    //if (debug) console.log(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src', relativePath);
     const onceIORModule = relativePath
 
     const importNode: TS.ImportDeclaration = TS.factory.createImportDeclaration(
@@ -552,10 +585,30 @@ class ThinglishFileVisitor {
   addItionalHeader: Record<string, TS.ImportDeclaration> = {};
 
   transform() {
-    console.log("myTransformer", this.sourceFile.fileName)
+    if (debug) console.log("myTransformer", this.sourceFile.fileName)
 
     this.sourceFile = TS.visitNode(this.sourceFile, this.visitor.bind(this));
 
+
+    let allImportVariables: string[] = this.getAllImportedVariables();
+    if (debug) console.log("existingImports:  " + this.sourceFile.fileName, allImportVariables);
+
+    // let allClasses: string[] = this.getAllClasses();
+
+    let importVariables = Object.keys(this.addItionalHeader).filter(key => !allImportVariables.includes(key))
+    let newImports = importVariables.map(key => this.addItionalHeader[key])
+    if (debug) console.log("AddImports:  ", importVariables);
+
+    this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...newImports, ...this.sourceFile.statements]);
+    return this.sourceFile;
+  }
+
+  // private getAllClasses(): string[] {
+  //   let existingClasses = this.sourceFile.statements.filter(x => TS.isImportDeclaration(x)) as TS.ClassDeclaration[];
+  //   return existingClasses.map(x => x.name?.escapedText as string).filter(x => !!x)
+  // }
+
+  private getAllImportedVariables(): string[] {
     let existingImports = this.sourceFile.statements.filter(x => TS.isImportDeclaration(x)) as TS.ImportDeclaration[];
 
     let allImportVariables: string[] = [];
@@ -565,16 +618,12 @@ class ThinglishFileVisitor {
       for (const element of elements) {
         allImportVariables.push(element.name.escapedText as string);
       }
-      //console.log(importDeclaration.importClause?.name);
+      //if (debug) console.log(importDeclaration.importClause?.name);
       const defaultImport = importDeclaration.importClause?.name?.escapedText;
-      if (defaultImport !== undefined) allImportVariables.push(defaultImport);
-    })
-    console.log("existingImports:  " + this.sourceFile.fileName, allImportVariables);
-
-    let newImports = Object.keys(this.addItionalHeader).filter(key => !allImportVariables.includes(key)).map(key => this.addItionalHeader[key])
-
-    this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...newImports, ...this.sourceFile.statements]);
-    return this.sourceFile;
+      if (defaultImport !== undefined)
+        allImportVariables.push(defaultImport);
+    });
+    return allImportVariables;
   }
 
   visitor(node: TS.Node): TS.VisitResult<TS.Node> {
@@ -586,7 +635,7 @@ class ThinglishFileVisitor {
     let myVisitor = visitorList.map(aTSNodeVisitorType => new aTSNodeVisitorType(visitorContext))
 
     if (TS.isInterfaceDeclaration(node)) {
-      console.log("  Node", TS.SyntaxKind[node.kind], this.sourceFile.text.substring(node.pos, node.end).replace('\n', ''))
+      if (debug) console.log("  Node", TS.SyntaxKind[node.kind], this.sourceFile.text.substring(node.pos, node.end).replace('\n', ''))
     }
 
     if (myVisitor.length > 0) {
