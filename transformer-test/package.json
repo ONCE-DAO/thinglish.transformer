@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "scripts": {
     "prepare": "ts-patch install",
-    "start": "cd ../transformer && npx tsc && cd ../transformer-test && npx tsc",
+    "start": "cd .. && npx tsc && cd transformer-test && npx tsc",
     "test": "jest"
   },
   "author": "",

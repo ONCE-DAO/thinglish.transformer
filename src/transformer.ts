@@ -2,7 +2,7 @@ import * as TS from 'typescript';
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path = require('path');
 
-const debug = false;
+const debug = true;
 
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
