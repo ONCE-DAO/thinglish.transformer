@@ -243,7 +243,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   private getInterfaceDescriptorRegister(node: TS.InterfaceDeclaration) {
-    let interfaceName = node.name.text + "InterfaceDescriptor";
+    let interfaceName = node.name.text;//+ "InterfaceDescriptor";
     //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
     const cd = TS.factory.createIdentifier('InterfaceDescriptor');
 
