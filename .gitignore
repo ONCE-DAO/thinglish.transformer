@@ -105,5 +105,5 @@ typings/
 transformer-test/.DS_Store
 
 
-*/dist/*
-dist/*
+# */dist/*
+# dist/*
