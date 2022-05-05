@@ -5,8 +5,7 @@
 
 import { View } from "./interfaces/ucpInterfaces";
 
-
-
+export {Logger} from "./Simple.class";
 
 // class MyClassDescription {
 //     getClassName():String {

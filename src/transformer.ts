@@ -121,6 +121,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   visit(node: TS.InterfaceDeclaration): TS.VisitResult<TS.Node> {
+    if (this.context.fileVisitor.phase === "after") return node;
+
     this.addImportInterfaceDescriptor();
     const exportVariableStatement = this.getInterfaceDescriptorRegister(node);
 
@@ -303,6 +305,53 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 }
 
+class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
+
+  static get validTSSyntaxKind(): TS.SyntaxKind {
+    return TS.SyntaxKind.ExportDeclaration
+  }
+
+  static {
+    BaseVisitor.implementations.push(this);
+  }
+
+  private readonly allowedExtensions = ['.interface', '.class']
+
+  visit(node: TS.ExportDeclaration): TS.VisitResult<TS.Node> {
+
+    //throw new Error("HIT");
+    if (this.context.fileVisitor.phase === "before") return node;
+
+    // if (this.context.sourceFile.fileName.match('/test/')) {
+    //   if (debug) console.log("No update for import on File: " + this.context.sourceFile.fileName)
+    //   return node;
+    // }
+
+   // if (debug) console.log("my transformer for EXPORT " + node.getFullText())
+    const doAddJS = this.shouldMutateModuleSpecifier(node);
+    if (doAddJS) {
+      const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
+      return TS.factory.updateExportDeclaration(node, node.decorators, node.modifiers, node.isTypeOnly, node.exportClause, newModuleSpecifier, node.assertClause)
+    }
+
+
+    return node;
+
+  }
+
+  shouldMutateModuleSpecifier(node: TS.ExportDeclaration): node is (TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
+    if (node.moduleSpecifier === undefined) return false
+    // only when module specifier is valid
+    if (!TS.isStringLiteral(node.moduleSpecifier)) return false
+    // only when path is relative
+    if (!node.moduleSpecifier.text.startsWith('./') && !node.moduleSpecifier.text.startsWith('../')) return false
+    // only when module specifier has no extension
+    const ext = path.extname(node.moduleSpecifier.text)
+    if (ext !== '' && !this.allowedExtensions.includes(ext)) return false
+    return true
+  }
+
+}
 
 class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
 
@@ -318,22 +367,23 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
 
   visit(node: TS.ImportDeclaration): TS.VisitResult<TS.Node> {
 
-    return node;
+    if (this.context.fileVisitor.phase === "before") return node;
 
     // if (this.context.sourceFile.fileName.match('/test/')) {
     //   if (debug) console.log("No update for import on File: " + this.context.sourceFile.fileName)
     //   return node;
     // }
 
-    // if (debug) console.log("my transformer" + node.kind)
-    // if (this.shouldMutateModuleSpecifier(node)) {
-    //   if (TS.isImportDeclaration(node)) {
-    //     const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
-    //     return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
-    //   }
-    // }
+    if (debug) console.log("my transformer" + node.kind)
+    if (this.shouldMutateModuleSpecifier(node)) {
+      if (TS.isImportDeclaration(node)) {
+        const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
+        return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
+      }
+    }
 
-    // return node
+    return node;
+
   }
 
   shouldMutateModuleSpecifier(node: TS.Node): node is (TS.ImportDeclaration | TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
@@ -363,6 +413,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   visit(node: TS.ClassDeclaration): TS.VisitResult<TS.Node> {
+    if (this.context.fileVisitor.phase === "after") return node;
+
     this.addImportClassDescriptor();
     const fileVisitor = this.context.fileVisitor;
 
@@ -571,9 +623,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 }
 
-
 class ThinglishFileVisitor {
-  constructor(private program: TS.Program, public context: TS.TransformationContext, public sourceFile: TS.SourceFile) {
+  constructor(private program: TS.Program, public context: TS.TransformationContext, public sourceFile: TS.SourceFile, public phase: "before" | "after") {
 
   }
 
@@ -585,7 +636,7 @@ class ThinglishFileVisitor {
   addItionalHeader: Record<string, TS.ImportDeclaration> = {};
 
   transform() {
-    if (debug) console.log("myTransformer", this.sourceFile.fileName)
+    if (debug) console.log("myTransformer " + this.phase, this.sourceFile.fileName)
 
     this.sourceFile = TS.visitNode(this.sourceFile, this.visitor.bind(this));
 
@@ -655,10 +706,18 @@ const programTransformer = (program: TS.Program) => {
 
       return (sourceFile: TS.SourceFile): TS.SourceFile => {
 
-        return new ThinglishFileVisitor(program, context, sourceFile).transform();
+        return new ThinglishFileVisitor(program, context, sourceFile, "before").transform();
 
       }
-    }
+    },
+    after(context: TS.TransformationContext) {
+
+      return (sourceFile: TS.SourceFile): TS.SourceFile => {
+
+        return new ThinglishFileVisitor(program, context, sourceFile, "after").transform();
+
+      }
+    },
   }
 }
 

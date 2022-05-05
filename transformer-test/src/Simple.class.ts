@@ -59,3 +59,6 @@ class Warner extends Logger {
 
 (new Logger).log('=> should be prefixed [info]');
 (new Warner).log('=> should be prefixed [warn]');
+
+
+export {Logger};
