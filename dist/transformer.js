@@ -185,7 +185,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor {
         return variableDeclarationList;
     }
     addImportInterfaceDescriptor() {
-        let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
+        let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class.js') || ".";
         if (!relativePath.startsWith('.'))
             relativePath = './' + relativePath;
         const onceIORModule = relativePath;
@@ -383,7 +383,7 @@ class ThinglishClassVisitor extends BaseVisitor {
         if (this.context.sourceFile.fileName.match("ClassDescriptor"))
             return;
         path.dirname(this.context.sourceFile.fileName);
-        let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
+        let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class.js') || ".";
         if (!relativePath.startsWith('.'))
             relativePath = './' + relativePath;
         //if (debug) console.log("FILE: " + this.context.sourceFile.fileName);
