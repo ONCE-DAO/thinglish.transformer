@@ -278,7 +278,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   private addImportInterfaceDescriptor() {
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class.js') || ".";
+    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
     if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
     const onceIORModule = relativePath;
@@ -318,22 +318,22 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
   private readonly allowedExtensions = ['.class']
 
   visit(node: TS.ImportDeclaration): TS.VisitResult<TS.Node> {
-    // return node;
+    return node;
 
     // if (this.context.sourceFile.fileName.match('/test/')) {
     //   if (debug) console.log("No update for import on File: " + this.context.sourceFile.fileName)
     //   return node;
     // }
 
-    if (debug) console.log("my transformer" + node.kind)
-    if (this.shouldMutateModuleSpecifier(node)) {
-      if (TS.isImportDeclaration(node)) {
-        const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
-        return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
-      }
-    }
+    // if (debug) console.log("my transformer" + node.kind)
+    // if (this.shouldMutateModuleSpecifier(node)) {
+    //   if (TS.isImportDeclaration(node)) {
+    //     const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
+    //     return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
+    //   }
+    // }
 
-    return node
+    // return node
   }
 
   shouldMutateModuleSpecifier(node: TS.Node): node is (TS.ImportDeclaration | TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
@@ -548,7 +548,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
     if (this.context.sourceFile.fileName.match("ClassDescriptor")) return;
 
     path.dirname(this.context.sourceFile.fileName)
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class.js') || ".";
+    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
     if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
     //if (debug) console.log("FILE: " + this.context.sourceFile.fileName);
