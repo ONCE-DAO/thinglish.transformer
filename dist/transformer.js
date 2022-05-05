@@ -207,19 +207,19 @@ class ThinglishImportVisitor extends BaseVisitor {
         return TS.SyntaxKind.ImportDeclaration;
     }
     visit(node) {
-        // return node;
+        return node;
         // if (this.context.sourceFile.fileName.match('/test/')) {
         //   if (debug) console.log("No update for import on File: " + this.context.sourceFile.fileName)
         //   return node;
         // }
         // if (debug) console.log("my transformer" + node.kind)
-        if (this.shouldMutateModuleSpecifier(node)) {
-            if (TS.isImportDeclaration(node)) {
-                const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`);
-                return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined);
-            }
-        }
-        return node;
+        // if (this.shouldMutateModuleSpecifier(node)) {
+        //   if (TS.isImportDeclaration(node)) {
+        //     const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
+        //     return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
+        //   }
+        // }
+        // return node
     }
     shouldMutateModuleSpecifier(node) {
         if (!TS.isImportDeclaration(node) && !TS.isExportDeclaration(node))
