@@ -314,10 +314,10 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
     BaseVisitor.implementations.push(this);
   }
 
-  // private readonly allowedExtensions = ['.interface', '.class']
-  private readonly allowedExtensions = ['.class']
+  private readonly allowedExtensions = ['.interface', '.class']
 
   visit(node: TS.ImportDeclaration): TS.VisitResult<TS.Node> {
+
     return node;
 
     // if (this.context.sourceFile.fileName.match('/test/')) {
