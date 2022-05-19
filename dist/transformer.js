@@ -6,6 +6,8 @@ const TS = require("typescript");
 const fs_1 = require("fs");
 const path = require("path");
 const debug = true;
+const jsExtension = false;
+const ignoreFiles = ['OnceZod.ts'];
 class BaseVisitor {
     constructor(aContext) {
         this.context = aContext;
@@ -225,6 +227,8 @@ class ThinglishExportVisitor extends BaseVisitor {
         return node;
     }
     shouldMutateModuleSpecifier(node) {
+        if (jsExtension === false)
+            return false;
         if (node.moduleSpecifier === undefined)
             return false;
         // only when module specifier is valid
@@ -270,6 +274,8 @@ class ThinglishImportVisitor extends BaseVisitor {
         return node;
     }
     shouldMutateModuleSpecifier(node) {
+        if (!jsExtension)
+            return false;
         if (!TS.isImportDeclaration(node) && !TS.isExportDeclaration(node))
             return false;
         if (node.moduleSpecifier === undefined)
@@ -303,7 +309,7 @@ class ThinglishClassVisitor extends BaseVisitor {
         const fileVisitor = this.context.fileVisitor;
         if (debug)
             console.log("Class: " + ((_e = node.name) === null || _e === void 0 ? void 0 : _e.escapedText));
-        if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor")) {
+        if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("OnceZod")) {
             if (debug)
                 console.log("Cancel ClassDescriptor");
             return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
@@ -428,7 +434,7 @@ class ThinglishClassVisitor extends BaseVisitor {
         }
     }
     addImportClassDescriptor() {
-        if (this.context.sourceFile.fileName.match("ClassDescriptor"))
+        if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod"))
             return;
         path.dirname(this.context.sourceFile.fileName);
         let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
@@ -511,11 +517,23 @@ const programTransformer = (program) => {
     return {
         before(context) {
             return (sourceFile) => {
+                let matchFile = ignoreFiles.filter(file => sourceFile.fileName.endsWith(file));
+                if (matchFile.length > 0) {
+                    if (debug)
+                        console.log("Ignore file:  " + sourceFile.fileName);
+                    return sourceFile;
+                }
                 return new ThinglishFileVisitor(program, context, sourceFile, "before").transform();
             };
         },
         after(context) {
             return (sourceFile) => {
+                let matchFile = ignoreFiles.filter(file => sourceFile.fileName.endsWith(file));
+                if (matchFile.length > 0) {
+                    if (debug)
+                        console.log("Ignore file: " + sourceFile.fileName);
+                    return sourceFile;
+                }
                 return new ThinglishFileVisitor(program, context, sourceFile, "after").transform();
             };
         },

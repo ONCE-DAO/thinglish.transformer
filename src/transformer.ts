@@ -2,7 +2,11 @@ import * as TS from 'typescript';
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path = require('path');
 
-const debug = true;
+const debug: boolean = true;
+
+const jsExtension: boolean = false;
+
+const ignoreFiles: string[] = ['OnceZod.ts']
 
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
@@ -327,7 +331,7 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
     //   return node;
     // }
 
-   // if (debug) console.log("my transformer for EXPORT " + node.getFullText())
+    // if (debug) console.log("my transformer for EXPORT " + node.getFullText())
     const doAddJS = this.shouldMutateModuleSpecifier(node);
     if (doAddJS) {
       const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
@@ -340,6 +344,7 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   shouldMutateModuleSpecifier(node: TS.ExportDeclaration): node is (TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
+    if (jsExtension === false) return false;
     if (node.moduleSpecifier === undefined) return false
     // only when module specifier is valid
     if (!TS.isStringLiteral(node.moduleSpecifier)) return false
@@ -387,6 +392,7 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   shouldMutateModuleSpecifier(node: TS.Node): node is (TS.ImportDeclaration | TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
+    if (!jsExtension) return false;
     if (!TS.isImportDeclaration(node) && !TS.isExportDeclaration(node)) return false
     if (node.moduleSpecifier === undefined) return false
     // only when module specifier is valid
@@ -420,7 +426,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
     if (debug) console.log("Class: " + node.name?.escapedText);
 
-    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor")) {
+    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("OnceZod")) {
       if (debug) console.log("Cancel ClassDescriptor");
       return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
     }
@@ -597,7 +603,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   private addImportClassDescriptor() {
 
-    if (this.context.sourceFile.fileName.match("ClassDescriptor")) return;
+    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod")) return;
 
     path.dirname(this.context.sourceFile.fileName)
     let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
@@ -705,6 +711,11 @@ const programTransformer = (program: TS.Program) => {
     before(context: TS.TransformationContext) {
 
       return (sourceFile: TS.SourceFile): TS.SourceFile => {
+        let matchFile = ignoreFiles.filter(file => sourceFile.fileName.endsWith(file))
+        if (matchFile.length > 0) {
+          if (debug) console.log("Ignore file:  " + sourceFile.fileName);
+          return sourceFile;
+        }
 
         return new ThinglishFileVisitor(program, context, sourceFile, "before").transform();
 
@@ -713,6 +724,11 @@ const programTransformer = (program: TS.Program) => {
     after(context: TS.TransformationContext) {
 
       return (sourceFile: TS.SourceFile): TS.SourceFile => {
+        let matchFile = ignoreFiles.filter(file => sourceFile.fileName.endsWith(file))
+        if (matchFile.length > 0) {
+          if (debug) console.log("Ignore file: " + sourceFile.fileName);
+          return sourceFile;
+        }
 
         return new ThinglishFileVisitor(program, context, sourceFile, "after").transform();
 
