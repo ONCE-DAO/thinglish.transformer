@@ -1,1 +1,0 @@
-{"version":3,"file":"transformer.d.ts","sourceRoot":"","sources":["../src/transformer.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,MAAM,YAAY,CAAC;AAksBjC,QAAA,MAAM,kBAAkB,YAAa,GAAG,OAAO;oBAI3B,GAAG,qBAAqB,gBAElB,GAAG,UAAU,KAAG,GAAG,UAAU;mBAWpC,GAAG,qBAAqB,gBAEjB,GAAG,UAAU,KAAG,GAAG,UAAU;CAYtD,CAAA;AAGD;;GAEG;AACH,eAAO,MAAM,IAAI,YAAY,CAAC;AAE9B;;GAEG;AACH,eAAe,kBAAkB,CAAC"}
