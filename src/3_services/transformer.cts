@@ -270,17 +270,17 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     // Check for extends
     call = this.checkHeritageClause(node, call);
 
-    const variableDeclaration = TS.factory.createVariableDeclaration(
-      interfaceName,
-        /* exclamationToken optional */ undefined,
-        /* type */ undefined,
-        /* initializer */ call
-    );
-    const variableDeclarationList = TS.factory.createVariableDeclarationList(
-      [variableDeclaration], TS.NodeFlags.Const
-    );
-    const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList);
-    return variableDeclarationList;
+    // const variableDeclaration = TS.factory.createVariableDeclaration(
+    //   interfaceName,
+    //     /* exclamationToken optional */ undefined,
+    //     /* type */ undefined,
+    //     /* initializer */ call
+    // );
+    // const variableDeclarationList = TS.factory.createVariableDeclarationList(
+    //   [variableDeclaration], TS.NodeFlags.Const
+    // );
+    // const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList);
+    return call;
   }
 
   private addImportInterfaceDescriptor() {
@@ -646,7 +646,6 @@ class ThinglishFileVisitor {
 
     this.sourceFile = TS.visitNode(this.sourceFile, this.visitor.bind(this));
 
-
     let allImportVariables: string[] = this.getAllImportedVariables();
     if (debug) console.log("existingImports:  " + this.sourceFile.fileName, allImportVariables);
 
@@ -656,7 +655,10 @@ class ThinglishFileVisitor {
     let newImports = importVariables.map(key => this.addItionalHeader[key])
     if (debug) console.log("AddImports:  ", importVariables);
 
-    this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...newImports, ...this.sourceFile.statements]);
+    if (newImports.length > 0) {
+      this.sourceFile = TS.factory.updateSourceFile(this.sourceFile, [...newImports, ...this.sourceFile.statements]);
+    }
+
     return this.sourceFile;
   }
 
