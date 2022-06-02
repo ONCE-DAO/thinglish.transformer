@@ -317,7 +317,7 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
     BaseVisitor.implementations.push(this);
   }
 
-  private readonly allowedExtensions = ['.interface', '.class']
+  private readonly allowedExtensions = ['.interface', '.class','.interface.mjs', '.class.mjs']
 
   visit(node: TS.ExportDeclaration): TS.VisitResult<TS.Node> {
 
@@ -366,7 +366,7 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
     BaseVisitor.implementations.push(this);
   }
 
-  private readonly allowedExtensions = ['.interface', '.class']
+  private readonly allowedExtensions = ['.interface', '.class','.interface.mjs', '.class.mjs']
 
   visit(node: TS.ImportDeclaration): TS.VisitResult<TS.Node> {
 

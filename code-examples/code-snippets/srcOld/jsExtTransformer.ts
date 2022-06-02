@@ -1,7 +1,7 @@
 import * as path from 'path'
 import * as typescript from 'typescript'
 
-const allowedExtensions = ['.interface', '.class']
+const allowedExtensions = ['.interface', '.class','.interface.mjs', '.class.mjs']
 const transformer = (_: typescript.Program) => (transformationContext: typescript.TransformationContext) => (sourceFile: typescript.SourceFile) => {
   function visitNode (node: typescript.Node): typescript.VisitResult<typescript.Node> {
     console.log("my transformer"+node.kind)

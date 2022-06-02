@@ -1,5 +1,5 @@
 
-import {InterfaceDescriptor} from "../2_systems/Things/DefaultClassDescriptor.class"
+import {InterfaceDescriptor} from "../2_systems/Things/DefaultClassDescriptor.class.mjs"
 
 
 export let EventServiceInterfaceDescriptor = InterfaceDescriptor.register("com.some.package", "SomeComponentName", "1.0.0", "EventServiceInterfaceDescriptor")
