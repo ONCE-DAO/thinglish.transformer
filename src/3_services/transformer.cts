@@ -6,7 +6,9 @@ const debug: boolean = true;
 
 const jsExtension: boolean = false;
 
-const ignoreFiles: string[] = ['OnceZod.ts']
+const ignoreFiles: string[] = ['OnceZod.ts', 'InterfaceDescriptor.class.mts', 'ClassDescriptor.class.mts', 'BaseUcpComponentDescriptor.class.mts', 'ServerSideUcpComponentDescriptor.class.mts', 'TsConfig.class.mts']
+
+const onceModulePath: string = process.cwd().replace(/\/EAMD.ucp\/.*/, '/EAMD.ucp') + '/Components/tla/EAM/Once/dist/once.merge/main/';
 
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
@@ -284,7 +286,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   private addImportInterfaceDescriptor() {
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
+    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), onceModulePath + '2_systems/Things/InterfaceDescriptor.class.mjs') || ".";
     if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
     const onceIORModule = relativePath;
@@ -293,12 +295,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       undefined,
       TS.factory.createImportClause(
         false,
-        undefined,
-        TS.factory.createNamedImports([TS.factory.createImportSpecifier(
-          false,
-          undefined,
-          TS.factory.createIdentifier("InterfaceDescriptor")
-        )])
+        TS.factory.createIdentifier("InterfaceDescriptor"),
+        undefined
       ),
       TS.factory.createStringLiteral(onceIORModule),
       undefined
@@ -606,7 +604,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
     if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod")) return;
 
     path.dirname(this.context.sourceFile.fileName)
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src/2_systems/Things/DefaultClassDescriptor.class') || ".";
+    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), onceModulePath + '/2_systems/Things/ClassDescriptor.class.mjs') || ".";
     if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
     //if (debug) console.log("FILE: " + this.context.sourceFile.fileName);
