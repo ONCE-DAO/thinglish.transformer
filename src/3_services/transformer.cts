@@ -2,7 +2,7 @@ import * as TS from 'typescript';
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path = require('path');
 
-const debug: boolean = true;
+const debug: boolean = false;
 
 const jsExtension: boolean = false;
 
