@@ -2,7 +2,7 @@
   "extends": "../../../../../../tsconfig",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "../../../../../../Scenarios/localhost/tla/EAM/Thinglish/Transformer/main/dist/",
+    "outDir": "../../../../../../Scenarios/localhost/tla/EAM/Thinglish/transformer/main/dist/",
     "module": "commonjs",
   },
   "include": [
@@ -10,8 +10,8 @@
   ],
   "exclude": [
     "code-examples"
-  //   "test",
-  //   "**/test/**/*",
-  //   "node_modules"
+    //   "test",
+    //   "**/test/**/*",
+    //   "node_modules"
   ]
 }
