@@ -2,7 +2,7 @@
   "extends": "../../../../../../tsconfig",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "../../../../../../Scenarios/localhost/tla/EAM/Thinglish.Transformer/main/",
+    "outDir": "../../../../../../Scenarios/localhost/tla/EAM/Thinglish/Transformer/main/dist/",
     "module": "commonjs",
   },
   "include": [
