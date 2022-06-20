@@ -104,6 +104,6 @@ typings/
 .tern-port
 transformer-test/.DS_Store
 
-
+dist
 
 transformer-test/dist/*
