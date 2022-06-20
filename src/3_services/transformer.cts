@@ -86,10 +86,10 @@ class ComponentDescriptor {
     path.pop();
     this.packagePath = path.join('/');
 
-    for (const key of ["package", "name", "version"]) {
+    for (const key of ["namespace", "name", "version"]) {
       if (packageJsonData[key] === undefined) throw new Error(`Missing ${key} in the Package Json file => ${packageJson}`);
     }
-    this.package = packageJsonData.package
+    this.package = packageJsonData.namespace;
     this.name = packageJsonData.name;
     this.version = packageJsonData.version;
 
@@ -317,7 +317,7 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
     BaseVisitor.implementations.push(this);
   }
 
-  private readonly allowedExtensions = ['.interface', '.class','.interface.mjs', '.class.mjs']
+  private readonly allowedExtensions = ['.interface', '.class', '.interface.mjs', '.class.mjs']
 
   visit(node: TS.ExportDeclaration): TS.VisitResult<TS.Node> {
 
@@ -366,7 +366,7 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
     BaseVisitor.implementations.push(this);
   }
 
-  private readonly allowedExtensions = ['.interface', '.class','.interface.mjs', '.class.mjs']
+  private readonly allowedExtensions = ['.interface', '.class', '.interface.mjs', '.class.mjs']
 
   visit(node: TS.ImportDeclaration): TS.VisitResult<TS.Node> {
 
