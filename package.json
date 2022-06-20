@@ -1,6 +1,6 @@
 {
   "name": "thinglish-transformer",
-  "namespace": "tla.EAM/Thinglish",
+  "namespace": "tla.EAM",
   "version": "0.1.1",
   "description": "transform classes to reflective components",
   "main": "dist/main.js",
