@@ -4,6 +4,7 @@
   "version": "0.1.1",
   "description": "transform classes to reflective components",
   "main": "dist/main.js",
+  "onceDependencies": [],
   "author": "Marcel Donges",
   "license": "AGPL-3.0",
   "repository": {
