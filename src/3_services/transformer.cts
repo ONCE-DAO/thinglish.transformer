@@ -8,7 +8,7 @@ const jsExtension: boolean = false;
 
 const ignoreFiles: string[] = ['OnceZod.ts', 'InterfaceDescriptor.class.mts', 'ClassDescriptor.class.mts', 'BaseUcpComponentDescriptor.class.mts', 'ServerSideUcpComponentDescriptor.class.mts', 'TsConfig.class.mts']
 
-const onceModulePath: string = process.cwd().replace(/\/EAMD.ucp\/.*/, '/EAMD.ucp') + '/Components/tla/EAM/Once/Merge/once.merge@main/src/';
+const onceModulePath: string = process.cwd().replace(/\/EAMD.ucp\/.*/, '/EAMD.ucp') + '/Components/tla/EAM/Once/once@dev/src/';
 
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
