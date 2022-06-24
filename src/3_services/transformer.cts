@@ -9,7 +9,8 @@ const jsExtension: boolean = false;
 const ignoreFiles: string[] = ['OnceZod.ts', 'InterfaceDescriptor.class.mts', 'ClassDescriptor.class.mts', 'BaseUcpComponentDescriptor.class.mts', 'ServerSideUcpComponentDescriptor.class.mts', 'TsConfig.class.mts']
 
 const onceModulePath: string = process.cwd().replace(/\/EAMD.ucp\/.*/, '/EAMD.ucp') + '/Components/tla/EAM/Once/once@dev/src/';
-
+const localInterfaceDescriptorPath: string = '2_systems/Things/InterfaceDescriptor.class.mjs'
+const localClassDescriptorPath: string = '/2_systems/Things/ClassDescriptor.class.mjs'
 
 const onceIOR = "ior:esm:/tla.EAM.Once[dev]"
 /**
@@ -112,9 +113,6 @@ class ComponentDescriptor {
   }
 
 }
-
-const onceIORModule = "ior:esm:git:tla.EAM.Once";
-
 
 
 class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
@@ -288,16 +286,46 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 
   private addImportInterfaceDescriptor() {
-    const isOncePackage = this.context.sourceFile.fileName.toLowerCase().includes("once/once@")
+    let importNode: TS.ImportDeclaration;
 
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), onceModulePath + 'index.mjs') || ".";
-    if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
+    if (TSAstFactory.isOnceFile(this.context.sourceFile)) {
+      const dir = path.dirname(this.context.sourceFile.fileName);
+      let relativePath = path.relative(dir, path.join(onceModulePath + localInterfaceDescriptorPath)) || ".";
+      if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
-    if (!isOncePackage) relativePath = onceIOR;
+      importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", relativePath);
+    } else {
+      importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", onceIOR);
+
+    }
+
+    this.context.fileVisitor.add2Header(`InterfaceDescriptor`, importNode);
+  }
+}
 
 
-    const onceIORModule = relativePath;
-    const importNode: TS.ImportDeclaration = TS.factory.createImportDeclaration(
+class TSAstFactory {
+
+  static isOnceFile(file: TS.SourceFile): boolean {
+    return file.fileName.toLowerCase().includes("once/once@")
+  }
+
+  static createDefaultImportNode(name: string, importPath: string): TS.ImportDeclaration {
+    return TS.factory.createImportDeclaration(
+      undefined,
+      undefined,
+      TS.factory.createImportClause(
+        false,
+        TS.factory.createIdentifier(name),
+        undefined
+      ),
+      TS.factory.createStringLiteral(importPath),
+      undefined
+    );
+  }
+
+  static createNamedImportNode(name: string, importPath: string): TS.ImportDeclaration {
+    return TS.factory.createImportDeclaration(
       undefined,
       undefined,
       TS.factory.createImportClause(
@@ -306,15 +334,12 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
         TS.factory.createNamedImports([TS.factory.createImportSpecifier(
           false,
           undefined,
-          TS.factory.createIdentifier("InterfaceDescriptor")
+          TS.factory.createIdentifier(name)
         )])
       ),
-      TS.factory.createStringLiteral(onceIORModule),
+      TS.factory.createStringLiteral(importPath),
       undefined
     );
-    //if (debug) console.log(importNode);
-
-    this.context.fileVisitor.add2Header(`InterfaceDescriptor`, importNode);
   }
 }
 
@@ -612,36 +637,18 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   private addImportClassDescriptor() {
 
-    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod")) return;
+    let importNode: TS.ImportDeclaration;
 
-    path.dirname(this.context.sourceFile.fileName)
+    if (TSAstFactory.isOnceFile(this.context.sourceFile)) {
+      const dir = path.dirname(this.context.sourceFile.fileName);
+      let relativePath = path.relative(dir, path.join(onceModulePath + localClassDescriptorPath)) || ".";
+      if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
-    const isOncePackage = this.context.sourceFile.fileName.toLowerCase().includes("once/once@")
-
-    let relativePath = path.relative(path.dirname(this.context.sourceFile.fileName), onceModulePath + 'index.mjs') || ".";
-    if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
-
-    if (!isOncePackage) relativePath = onceIOR;
-
-    //if (debug) console.log("FILE: " + this.context.sourceFile.fileName);
-    //if (debug) console.log(path.dirname(this.context.sourceFile.fileName), this.componentDescriptor.packagePath + '/src', relativePath);
-    const onceIORModule = relativePath
-
-    const importNode: TS.ImportDeclaration = TS.factory.createImportDeclaration(
-      undefined,
-      undefined,
-      TS.factory.createImportClause(
-        false,
-        undefined,
-        TS.factory.createNamedImports([TS.factory.createImportSpecifier(
-          false,
-          undefined,
-          TS.factory.createIdentifier("ClassDescriptor")
-        )])
-      ),
-      TS.factory.createStringLiteral(onceIORModule),
-      undefined
-    );
+      importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", relativePath);
+    } else {
+      let compilerOptions = this.context.program.getCompilerOptions();
+      importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", onceIOR);
+    }
 
     this.context.fileVisitor.add2Header(`ClassDescriptor`, importNode);
   }
