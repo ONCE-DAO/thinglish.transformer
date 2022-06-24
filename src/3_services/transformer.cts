@@ -295,7 +295,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
       importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", relativePath);
     } else {
-      importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", onceIOR);
+      importNode = TSAstFactory.createNamedImportNode("InterfaceDescriptor", onceIOR);
 
     }
 
@@ -647,7 +647,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
       importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", relativePath);
     } else {
       let compilerOptions = this.context.program.getCompilerOptions();
-      importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", onceIOR);
+      importNode = TSAstFactory.createNamedImportNode("ClassDescriptor", onceIOR);
     }
 
     this.context.fileVisitor.add2Header(`ClassDescriptor`, importNode);
