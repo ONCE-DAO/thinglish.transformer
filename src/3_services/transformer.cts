@@ -6,7 +6,7 @@ const debug: boolean = false;
 
 const jsExtension: boolean = false;
 
-const ignoreFiles: string[] = ['OnceZod.ts', 'InterfaceDescriptor.class.mts', 'ClassDescriptor.class.mts', 'BaseUcpComponentDescriptor.class.mts', 'ServerSideUcpComponentDescriptor.class.mts', 'TsConfig.class.mts']
+const ignoreFiles: string[] = ['OnceZod.ts', 'NpmPackage.class.mts', 'InterfaceDescriptor.class.mts', 'ClassDescriptor.class.mts', 'UcpComponentDescriptor.class.mts', 'TsConfig.class.mts']
 
 const onceModulePath: string = process.cwd().replace(/\/EAMD.ucp\/.*/, '/EAMD.ucp') + '/Components/tla/EAM/Once/once@dev/src/';
 const localInterfaceDescriptorPath: string = '2_systems/Things/InterfaceDescriptor.class.mjs'
