@@ -6,13 +6,9 @@ const debug: boolean = false;
 
 const jsExtension: boolean = false;
 
-const ignoreFiles: string[] = ['OnceZod.ts', 'NpmPackage.class.mts', 'InterfaceDescriptor.class.mts', 'ClassDescriptor.class.mts', 'UcpComponentDescriptor.class.mts', 'TsConfig.class.mts']
-
-const onceModulePath: string = process.cwd().replace(/\/EAMD.ucp\/.*/, '/EAMD.ucp') + '/Components/tla/EAM/Once/once@dev/src/';
 const localInterfaceDescriptorPath: string = '2_systems/Things/InterfaceDescriptor.class.mjs'
-const localClassDescriptorPath: string = '/2_systems/Things/ClassDescriptor.class.mjs'
+const localClassDescriptorPath: string = '2_systems/Things/ClassDescriptor.class.mjs'
 
-const onceIOR = "ior:esm:/tla.EAM.Once[dev]"
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
  */
@@ -290,11 +286,14 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
     if (TSAstFactory.isOnceFile(this.context.sourceFile)) {
       const dir = path.dirname(this.context.sourceFile.fileName);
-      let relativePath = path.relative(dir, path.join(onceModulePath + localInterfaceDescriptorPath)) || ".";
+      let onceModulePath = dir.replace(/^(.*\/[oO]nce@[^\/]+\/src\/).*/, '$1')
+      let relativePath = path.relative(dir, path.join(onceModulePath, localInterfaceDescriptorPath)) || ".";
       if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
       importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", relativePath);
     } else {
+      let onceIOR = this.context.program.getCompilerOptions().onceIOR;
+      if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
       importNode = TSAstFactory.createNamedImportNode("InterfaceDescriptor", onceIOR);
 
     }
@@ -641,12 +640,15 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
     if (TSAstFactory.isOnceFile(this.context.sourceFile)) {
       const dir = path.dirname(this.context.sourceFile.fileName);
-      let relativePath = path.relative(dir, path.join(onceModulePath + localClassDescriptorPath)) || ".";
+      let onceModulePath = dir.replace(/^(.*\/[oO]nce@[^\/]+\/src\/).*/, '$1')
+      let relativePath = path.relative(dir, path.join(onceModulePath, localClassDescriptorPath)) || ".";
       if (!relativePath.startsWith('.')) relativePath = './' + relativePath;
 
       importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", relativePath);
     } else {
-      let compilerOptions = this.context.program.getCompilerOptions();
+      let onceIOR = this.context.program.getCompilerOptions().onceIOR;
+      if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
+
       importNode = TSAstFactory.createNamedImportNode("ClassDescriptor", onceIOR);
     }
 
@@ -736,10 +738,8 @@ const programTransformer = (program: TS.Program) => {
   return {
 
     before(context: TS.TransformationContext) {
-      console.log(program.getCompilerOptions().ONCESTUFF)
       return (sourceFile: TS.SourceFile): TS.SourceFile => {
-        let matchFile = ignoreFiles.filter(file => sourceFile.fileName.endsWith(file))
-        if (matchFile.length > 0) {
+        if (sourceFile.getFullText().match(/\/\/ *##IGNORE_TRANSFORMER##/)) {
           if (debug) console.log("Ignore file:  " + sourceFile.fileName);
           return sourceFile;
         }
@@ -751,8 +751,7 @@ const programTransformer = (program: TS.Program) => {
     after(context: TS.TransformationContext) {
 
       return (sourceFile: TS.SourceFile): TS.SourceFile => {
-        let matchFile = ignoreFiles.filter(file => sourceFile.fileName.endsWith(file))
-        if (matchFile.length > 0) {
+        if (sourceFile.getFullText().match(/\/\/ *##IGNORE_TRANSFORMER##/)) {
           if (debug) console.log("Ignore file: " + sourceFile.fileName);
           return sourceFile;
         }
