@@ -8,7 +8,7 @@ const jsExtension: boolean = false;
 
 const localInterfaceDescriptorPath: string = '2_systems/Things/InterfaceDescriptor.class.mjs'
 const localClassDescriptorPath: string = '2_systems/Things/ClassDescriptor.class.mjs'
-
+const onceIOR = "ior:esm:/tla.EAM.Once[dev]";
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
  */
@@ -292,8 +292,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
       importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", relativePath);
     } else {
-      let onceIOR = this.context.program.getCompilerOptions().onceIOR;
-      if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
+      // let onceIOR = this.context.program.getCompilerOptions().onceIOR;
+      // if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
       importNode = TSAstFactory.createNamedImportNode("InterfaceDescriptor", onceIOR);
 
     }
@@ -646,8 +646,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
       importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", relativePath);
     } else {
-      let onceIOR = this.context.program.getCompilerOptions().onceIOR;
-      if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
+      // let onceIOR = this.context.program.getCompilerOptions().onceIOR;
+      // if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
 
       importNode = TSAstFactory.createNamedImportNode("ClassDescriptor", onceIOR);
     }
