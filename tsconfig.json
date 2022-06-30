@@ -2,7 +2,7 @@
   "extends": "../../../../../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "../../../../../../Scenarios/localhost/tla/EAM/Thinglish/Transformer/merge",
+    "outDir": "../../../../../../Scenarios/localhost/webroot/tla/EAM/Thinglish/Transformer/merge",
     "module": "commonjs"
   },
   "include": [
@@ -13,6 +13,6 @@
     "**/test/**/*",
     "dist",
     "node_modules",
-    "../../../../../../Scenarios/localhost/tla/EAM/Thinglish/Transformer/merge"
+    "../../../../../../Scenarios/localhost/webroot/tla/EAM/Thinglish/Transformer/merge"
   ]
 }
