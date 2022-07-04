@@ -8,7 +8,7 @@ const jsExtension: boolean = false;
 
 const localInterfaceDescriptorPath: string = '2_systems/Things/InterfaceDescriptor.class.mjs'
 const localClassDescriptorPath: string = '2_systems/Things/ClassDescriptor.class.mjs'
-const onceIOR = "ior:esm:/tla.EAM.Once[dev]";
+const onceIOR = "ior:esm:/tla.EAM.Once[build]";
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
  */
@@ -707,6 +707,7 @@ class ThinglishFileVisitor {
       //if (debug) console.log(importDeclaration.importClause?.name);
       const defaultImport = importDeclaration.importClause?.name?.escapedText;
       if (defaultImport !== undefined)
+        //@ts-ignore
         allImportVariables.push(defaultImport);
     });
     return allImportVariables;
