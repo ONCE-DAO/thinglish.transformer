@@ -391,6 +391,37 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
 
 }
 
+class ThinglishCallExpressionVisitor extends BaseVisitor implements TSNodeVisitor {
+
+  static get validTSSyntaxKind(): TS.SyntaxKind {
+    return TS.SyntaxKind.CallExpression
+  }
+
+  static {
+    BaseVisitor.implementations.push(this);
+  }
+
+  visit(node: TS.CallExpression): TS.VisitResult<TS.Node> {
+
+    if (this.context.fileVisitor.phase === "before") return node;
+
+    // Add leading "/" to IOR import
+    if (node.expression.kind === TS.SyntaxKind.ImportKeyword) {
+      if (node.arguments.length === 1 && node.arguments[0].kind === TS.SyntaxKind.StringLiteral) {
+        let arg = node.arguments[0] as TS.StringLiteral;
+
+        if (arg.text.startsWith('ior:esm:')) {
+          return TS.factory.updateCallExpression(node, node.expression, node.typeArguments, [TS.factory.createStringLiteral(`/${arg.text}`)])
+        }
+      }
+    }
+
+    let fileVisitor = this.context.fileVisitor;
+    return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
+  }
+}
+
+
 class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
 
   static get validTSSyntaxKind(): TS.SyntaxKind {
@@ -412,29 +443,28 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
     //   return node;
     // }
 
-    if (debug) console.log("my transformer" + node.kind)
+    //@ts-ignore
+    if (debug) console.log("my transformer" + node.kind + ' : ' + node.moduleSpecifier.text)
+
+
     if (this.shouldMutateModuleSpecifier(node)) {
       if (TS.isImportDeclaration(node)) {
-        const newModuleSpecifier = TS.factory.createStringLiteral(`${node.moduleSpecifier.text}.js`)
+        const newModuleSpecifier = TS.factory.createStringLiteral(`/${node.moduleSpecifier.text}`)
         return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
       }
     }
-
-    return node;
+    let fileVisitor = this.context.fileVisitor;
+    return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
 
   }
 
   shouldMutateModuleSpecifier(node: TS.Node): node is (TS.ImportDeclaration | TS.ExportDeclaration) & { moduleSpecifier: TS.StringLiteral } {
-    if (!jsExtension) return false;
     if (!TS.isImportDeclaration(node) && !TS.isExportDeclaration(node)) return false
     if (node.moduleSpecifier === undefined) return false
     // only when module specifier is valid
     if (!TS.isStringLiteral(node.moduleSpecifier)) return false
     // only when path is relative
-    if (!node.moduleSpecifier.text.startsWith('./') && !node.moduleSpecifier.text.startsWith('../')) return false
-    // only when module specifier has no extension
-    const ext = path.extname(node.moduleSpecifier.text)
-    if (ext !== '' && !this.allowedExtensions.includes(ext)) return false
+    if (!node.moduleSpecifier.text.startsWith('ior:esm:')) return false
     return true
   }
 
@@ -459,7 +489,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
     if (debug) console.log("Class: " + node.name?.escapedText);
 
-    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceKernel") || this.context.sourceFile.fileName.match("OnceZod")) {
+    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod")) {
       if (debug) console.log("Cancel ClassDescriptor");
       return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
     }
