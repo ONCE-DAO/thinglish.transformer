@@ -108,3 +108,6 @@ dist
 
 transformer-test/dist/*
 tsconfig.build.json
+
+
+dist

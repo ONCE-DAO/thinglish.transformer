@@ -32,6 +32,6 @@ export default programTransformer;
 
 
 
-static async test() {
-  this.pakage = await import("../2_systems/Once/OnceNodeImportLoader.class.js")
-}
+// static async test() {
+//   this.pakage = await import("../2_systems/Once/OnceNodeImportLoader.class.js")
+// }

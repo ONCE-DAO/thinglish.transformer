@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import * as TSTypes from 'typescript';
-import * as pack from "./package.json"
+// import * as pack from "./package.json"
 import { VisitResult } from 'typescript';
 
 
@@ -99,9 +99,9 @@ export default function myTransformerPlugin(program: ts.Program, opts: MyPluginO
                                 cd, "register"),
                             undefined,
                             [
-                                ts.factory.createStringLiteral(pack.package),
-                                ts.factory.createStringLiteral(pack.name),
-                                ts.factory.createStringLiteral(pack.version),
+                                // ts.factory.createStringLiteral(pack.package),
+                                // ts.factory.createStringLiteral(pack.name),
+                                // ts.factory.createStringLiteral(pack.version),
                                 ts.factory.createStringLiteral(interfaceName)
                             ]
                         )

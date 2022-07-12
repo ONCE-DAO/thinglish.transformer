@@ -1,7 +1,6 @@
 import * as TS from 'typescript';
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import path = require('path');
-
+import { existsSync, readFileSync } from "fs";
+import * as path from "path";
 const debug: boolean = false;
 
 const jsExtension: boolean = false;
