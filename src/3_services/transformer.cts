@@ -700,6 +700,7 @@ class ThinglishFileVisitor {
 
   transform() {
     if (debug) console.log("myTransformer " + this.phase, this.sourceFile.fileName)
+    if (this.sourceFile.fileName.match('/zod/')) return this.sourceFile;
 
     this.sourceFile = TS.visitNode(this.sourceFile, this.visitor.bind(this));
 
