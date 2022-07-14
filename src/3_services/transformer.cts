@@ -204,8 +204,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
     }
 
-    if (importPath.startsWith("ior:")) {
-      const matchResult = importPath.match(/^ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
+    if (importPath.startsWith("ior:") || importPath.startsWith("/ior:")) {
+      const matchResult = importPath.match(/^\/?ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
       if (matchResult) {
         return TS.factory.createCallExpression(
           TS.factory.createPropertyAccessExpression(
@@ -594,8 +594,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
     }
 
-    if (importPath.startsWith("ior:")) {
-      const matchResult = importPath.match(/^ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
+    if (importPath.startsWith("ior:") || importPath.startsWith("/ior:")) {
+      const matchResult = importPath.match(/^\/?ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
       if (matchResult) {
         return this.descriptorCreator(["ClassDescriptor", "addInterfaces"], [matchResult[1], matchResult[2], matchResult[3], interfaceName])
 
