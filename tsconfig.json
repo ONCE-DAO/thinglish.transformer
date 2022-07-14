@@ -1,18 +1,7 @@
 {
-  // "extends": "../../../../../../tsconfig.build.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "module": "commonjs",
-    "target": "ES2016",
-    "declaration": true,
-    "declarationMap": true,
-    "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true, /* Ensure that casing is correct in imports. */
-    "strict": true,
-    "skipLibCheck": true
-  },
+  "extends": "./tsconfig.build.json",
   "include": [
-    "src/**/*"
+    "./src",
+    "./test"
   ],
-  "exclude": []
 }
