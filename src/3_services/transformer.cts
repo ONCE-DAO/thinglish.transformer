@@ -1,5 +1,5 @@
 import * as TS from 'typescript';
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import * as path from "path";
 const debug: boolean = false;
 
@@ -48,6 +48,9 @@ abstract class BaseVisitor implements TSNodeVisitor {
 
 }
 
+
+
+
 class ComponentDescriptor {
 
   private static _store: Record<string, ComponentDescriptor> = {};
@@ -65,7 +68,7 @@ class ComponentDescriptor {
       filename = sourceFile.fileName;
     }
 
-    let packageFile = this.getPackage4File(filename.split('/'), filename);
+    let packageFile = this.getPackage4File(path.dirname(filename).split('/'), filename);
 
     if (this._store[packageFile]) {
       return this._store[packageFile];
@@ -85,7 +88,9 @@ class ComponentDescriptor {
     this.packagePath = path.join('/');
 
     for (const key of ["namespace", "name", "version"]) {
-      if (packageJsonData[key] === undefined) throw new Error(`Missing ${key} in the Package Json file => ${packageJson}`);
+      if (packageJsonData[key] === undefined) {
+        throw new Error(`Missing ${key} in the Package Json file => ${packageJson}`);
+      }
     }
     this.package = packageJsonData.namespace;
     this.name = packageJsonData.name;
@@ -94,19 +99,82 @@ class ComponentDescriptor {
   }
 
 
-  static getPackage4File(path: string[], originalFilename: string): string {
+  static getPackage4File(pathArray: string[], originalFilename: string): string {
     //if (debug) console.log("Get package 4 Path " + path);
-    if (path.length === 1) throw new Error("Could not find a package.json File! " + originalFilename)
-    const packageFile = path.join('/') + '/package.json';
-    //if (debug) console.log("Check: " + packageFile);
+    if (pathArray.length === 1) throw new Error("Could not find a *.component.json File! " + originalFilename)
+
+    let currentPath = pathArray.join('/')
+    let files = readdirSync(currentPath);
+    let componentsFile = files.filter(x => x.match(/\.component.json$/));
+    if (componentsFile.length > 0) {
+      return path.join(currentPath, componentsFile[0]);
+    }
+
+    const packageFile = path.join(currentPath, 'package.json');
     if (existsSync(packageFile)) {
       return packageFile;
-    } else {
-      path.pop()
-      return this.getPackage4File(path, originalFilename);
     }
+
+    pathArray.pop();
+    return this.getPackage4File(pathArray, originalFilename);
+
   }
 
+}
+
+class DeclarationDescriptor {
+  path!: string;
+  name!: string;
+  componentDescriptor!: ComponentDescriptor;
+
+  get location(): string {
+    return this.path.replace(/^\/?src\/?/, '')
+  }
+
+  constructor(public identifier: TS.Identifier, private context: VisitorContext) {
+    this.init();
+  }
+
+  get typeChecker() {
+    return this.context.program.getTypeChecker();
+  }
+
+
+
+  init(): descriptorInfos {
+    let result: Partial<descriptorInfos> = {};
+    let type = this.typeChecker.getTypeAtLocation(this.identifier);
+    if (!type.symbol.declarations) {
+      throw new Error("Missing declarations");
+    }
+
+    let nodeObject = type.symbol.declarations[0] as TS.Node;
+
+    let sourceFile = this.getFile4NodeObject(nodeObject);
+
+    this.componentDescriptor = ComponentDescriptor.getComponentDescriptor4File(sourceFile.fileName);
+
+
+    if ((TS.isInterfaceDeclaration(nodeObject) || TS.isClassDeclaration(nodeObject)) && typeof nodeObject.name !== "undefined") {
+      this.name = nodeObject.name.escapedText as string;
+    } else {
+      this.name = type.symbol.name;
+
+    }
+    this.path = path.relative(this.componentDescriptor.packagePath, sourceFile.fileName)
+
+    return result as descriptorInfos;
+  }
+
+  getFile4NodeObject(object: TS.Node): TS.SourceFile {
+    if (TS.isSourceFile(object)) {
+      return object;
+    } else if (object.parent) {
+      return this.getFile4NodeObject(object.parent);
+    } else {
+      throw new Error("Missing Parent")
+    }
+  }
 }
 
 
@@ -173,61 +241,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
   addExtendDeceleration(identifier: TS.Identifier, innerCallExpression: TS.CallExpression): TS.CallExpression {
 
-    const typeChecker = this.context.program.getTypeChecker();
-    let interfaceName = identifier.escapedText as string;
-
-    let symbol = typeChecker.getSymbolAtLocation(identifier);
-    let importPath = "";
-
-
-    let decorator = symbol?.declarations?.[0];
-    if (!decorator) {
-      return innerCallExpression;
-    } else if (TS.isImportSpecifier(decorator) || TS.isImportClause(decorator)) {
-      let myImport = this._getUpperImportDeclaration(decorator);
-
-      if (myImport && TS.isImportDeclaration(myImport)) {
-        importPath = myImport.moduleSpecifier.getText();
-      } else {
-        throw new Error("Not implemented yet 1");
-      }
-
-    } else if (TS.isClassDeclaration(decorator)) {
-      importPath = ".";
-    } else if (TS.isInterfaceDeclaration(decorator)) {
-      importPath = ".";
-
-    } else {
-      if (debug) console.log("Error Symbol " + interfaceName)
-      if (debug) console.log(symbol);
-      throw new Error("Not implemented yet 10");
-
-    }
-
-    if (importPath.startsWith("ior:") || importPath.startsWith("/ior:")) {
-      const matchResult = importPath.match(/^\/?ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
-      if (matchResult) {
-        return TS.factory.createCallExpression(
-          TS.factory.createPropertyAccessExpression(
-            innerCallExpression,
-            TS.factory.createIdentifier("addExtension")
-          ),
-          undefined,
-          [
-            TS.factory.createStringLiteral(matchResult[1]),
-            TS.factory.createStringLiteral(matchResult[2]),
-            TS.factory.createStringLiteral(matchResult[3]),
-            TS.factory.createStringLiteral(interfaceName)
-
-          ]
-        )
-
-      }
-      throw new Error("Could not match import String: " + importPath);
-
-    }
-    const sourcePath = path.dirname(this.context.sourceFile.fileName) + '/' + path.dirname(importPath);
-    const componentDescriptor = ComponentDescriptor.getComponentDescriptor4File(sourcePath);
+    let descriptor = new DeclarationDescriptor(identifier, this.context)
 
     return TS.factory.createCallExpression(
       TS.factory.createPropertyAccessExpression(
@@ -236,47 +250,39 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
       ),
       undefined,
       [
-        TS.factory.createStringLiteral(componentDescriptor.package),
-        TS.factory.createStringLiteral(componentDescriptor.name),
-        TS.factory.createStringLiteral(componentDescriptor.version),
-        TS.factory.createStringLiteral(interfaceName)
-
+        TS.factory.createStringLiteral(descriptor.componentDescriptor.package),
+        TS.factory.createStringLiteral(descriptor.componentDescriptor.name),
+        TS.factory.createStringLiteral(descriptor.componentDescriptor.version),
+        TS.factory.createStringLiteral(descriptor.location),
+        TS.factory.createStringLiteral(descriptor.name)
       ]
     )
   }
 
   private getInterfaceDescriptorRegister(node: TS.InterfaceDeclaration) {
-    let interfaceName = node.name.text;//+ "InterfaceDescriptor";
+    // let interfaceName = node.name.text;//+ "InterfaceDescriptor";
     //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
     const cd = TS.factory.createIdentifier('InterfaceDescriptor');
 
-    let componentDescriptor = this.componentDescriptor;
+    let declarationDescriptor = new DeclarationDescriptor(node.name, this.context);
+    //let componentDescriptor = this.componentDescriptor;
 
     let call = TS.factory.createCallExpression(
       TS.factory.createPropertyAccessExpression(
         cd, "register"),
       undefined,
       [
-        TS.factory.createStringLiteral(componentDescriptor.package),
-        TS.factory.createStringLiteral(componentDescriptor.name),
-        TS.factory.createStringLiteral(componentDescriptor.version),
-        TS.factory.createStringLiteral(interfaceName)
+        TS.factory.createStringLiteral(declarationDescriptor.componentDescriptor.package),
+        TS.factory.createStringLiteral(declarationDescriptor.componentDescriptor.name),
+        TS.factory.createStringLiteral(declarationDescriptor.componentDescriptor.version),
+        TS.factory.createStringLiteral(declarationDescriptor.location),
+        TS.factory.createStringLiteral(declarationDescriptor.name)
       ]
     );
 
     // Check for extends
     call = this.checkHeritageClause(node, call);
 
-    // const variableDeclaration = TS.factory.createVariableDeclaration(
-    //   interfaceName,
-    //     /* exclamationToken optional */ undefined,
-    //     /* type */ undefined,
-    //     /* initializer */ call
-    // );
-    // const variableDeclarationList = TS.factory.createVariableDeclarationList(
-    //   [variableDeclaration], TS.NodeFlags.Const
-    // );
-    // const exportVariableStatement = TS.factory.createVariableStatement([TS.factory.createModifier(TS.SyntaxKind.ExportKeyword)], variableDeclarationList);
     return call;
   }
 
@@ -301,6 +307,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   }
 }
 
+type descriptorInfos = { package: string, packageName: string, version: string, path: string, name: string }
 
 class TSAstFactory {
 
@@ -339,6 +346,7 @@ class TSAstFactory {
       undefined
     );
   }
+
 }
 
 class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
@@ -488,15 +496,15 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
     if (debug) console.log("Class: " + node.name?.escapedText);
 
-    if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod")) {
-      if (debug) console.log("Cancel ClassDescriptor");
-      return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
-    }
+    // if (this.context.sourceFile.fileName.match("ClassDescriptor") || this.context.sourceFile.fileName.match("NpmPackage") || this.context.sourceFile.fileName.match("UcpComponentDescriptor") || this.context.sourceFile.fileName.match("OnceZod")) {
+    //   if (debug) console.log("Cancel ClassDescriptor");
+    //   return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
+    // }
 
     let descriptor = this.checkHeritageClause(node);
 
-    descriptor.push(this.getDecoratorFilename());
-    descriptor.push(this.getDecoratorRegister());
+    //descriptor.push(this.getDecoratorFilename());
+    descriptor.push(this.getDecoratorRegister(node));
 
     node = TS.factory.updateClassDeclaration(
       node,
@@ -512,40 +520,17 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   }
 
-  getDecoratorRegister(): TS.Decorator {
-    const componentDescriptor = this.componentDescriptor;
-    return this.descriptorCreator(["ClassDescriptor", "register"], [componentDescriptor.package, componentDescriptor.name, componentDescriptor.version])
+  getDecoratorRegister(node: TS.ClassDeclaration): TS.Decorator {
+    if (!node.name) throw new Error("Missing Class name")
+    const declarationDescriptor = new DeclarationDescriptor(node.name, this.context);
+
+    return this.descriptorCreator(["ClassDescriptor", "register"],
+      [declarationDescriptor.componentDescriptor.package,
+      declarationDescriptor.componentDescriptor.name,
+      declarationDescriptor.componentDescriptor.version,
+      declarationDescriptor.location])
   }
 
-
-  getDecoratorFilename(): TS.Decorator {
-    // let fileNameNode = TS.factory.createExpressionStatement(TS.factory.createPropertyAccessExpression(
-    //   TS.factory.createMetaProperty(
-    //     TS.SyntaxKind.ImportKeyword,
-    //     TS.factory.createIdentifier("meta")
-    //   ),
-    //   TS.factory.createIdentifier("url")
-    // ));
-
-    return TS.factory.createDecorator(
-      TS.factory.createCallExpression(
-        TS.factory.createPropertyAccessExpression(
-          TS.factory.createIdentifier("ClassDescriptor"),
-          TS.factory.createIdentifier("setFilePath")
-        ),
-        undefined,
-        [TS.factory.createPropertyAccessExpression(
-          TS.factory.createMetaProperty(
-            TS.SyntaxKind.ImportKeyword,
-            TS.factory.createIdentifier("meta")
-          ),
-          TS.factory.createIdentifier("url")
-        )]
-      )
-    );
-
-    //return this.descriptorCreator(["ClassDescriptor", "setFilePath"], [fileNameNode])
-  }
 
   private _getUpperImportDeclaration(object: TS.Node | undefined): TS.ImportDeclaration | undefined {
     if (object === undefined) {
@@ -562,52 +547,14 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   getDecoratorInterface(identifier: TS.Identifier): TS.Decorator | undefined {
 
-    const typeChecker = this.context.program.getTypeChecker();
-    let interfaceName = identifier.escapedText as string;
+    let declarationDescriptor = new DeclarationDescriptor(identifier, this.context)
+    return this.descriptorCreator(["ClassDescriptor", "addInterfaces"],
+      [declarationDescriptor.componentDescriptor.package,
+      declarationDescriptor.componentDescriptor.name,
+      declarationDescriptor.componentDescriptor.version,
+      declarationDescriptor.location,
+      declarationDescriptor.name])
 
-    let symbol = typeChecker.getSymbolAtLocation(identifier);
-    let importPath = "";
-
-
-    let decorator = symbol?.declarations?.[0];
-    if (!decorator) {
-      return;
-    } else if (TS.isImportSpecifier(decorator) || TS.isImportClause(decorator)) {
-      let myImport = this._getUpperImportDeclaration(decorator);
-
-      if (myImport && TS.isImportDeclaration(myImport)) {
-        importPath = myImport.moduleSpecifier.getText();
-      } else {
-        throw new Error("Not implemented yet 1");
-
-      }
-
-    } else if (TS.isInterfaceDeclaration(decorator)) {
-      importPath = ".";
-    } else if (TS.isClassDeclaration(decorator)) {
-      //Class Declaration
-      return;
-    } else {
-      if (debug) console.log("Error Symbol " + interfaceName)
-      if (debug) console.log(symbol);
-      throw new Error("Not implemented yet 2");
-
-    }
-
-    if (importPath.startsWith("ior:") || importPath.startsWith("/ior:")) {
-      const matchResult = importPath.match(/^\/?ior:esm[^\/]+([^\[]+)\.([^.]+)(\[.+\])?/)
-      if (matchResult) {
-        return this.descriptorCreator(["ClassDescriptor", "addInterfaces"], [matchResult[1], matchResult[2], matchResult[3], interfaceName])
-
-      }
-      throw new Error("Could not match import String: " + importPath);
-
-    }
-
-    const sourcePath = path.dirname(this.context.sourceFile.fileName) + '/' + path.dirname(importPath);
-    const componentDescriptor = ComponentDescriptor.getComponentDescriptor4File(sourcePath);
-
-    return this.descriptorCreator(["ClassDescriptor", "addInterfaces"], [componentDescriptor.package, componentDescriptor.name, componentDescriptor.version, interfaceName])
   }
 
   private descriptorCreator(propertyAccessExpression: string[], stringLiteral: (string | TS.Identifier | TS.ExpressionStatement)[]) {
