@@ -80,7 +80,13 @@ class ComponentDescriptor {
 
   }
 
-  constructor(packageJson: string) {
+  constructor(packageJson?: string) {
+    if (!packageJson) {
+      this.package = "Unknown Namespace";
+      this.name = "Unknown name";
+      this.version = "Unknown version";
+      return this;
+    }
     const packageJsonData = JSON.parse(readFileSync(packageJson).toString());
 
     let path = packageJson.split('/');
@@ -95,7 +101,7 @@ class ComponentDescriptor {
     this.package = packageJsonData.namespace;
     this.name = packageJsonData.name;
     this.version = packageJsonData.version;
-
+    return this;
   }
 
 
@@ -141,11 +147,13 @@ class DeclarationDescriptor {
 
 
 
-  init(): descriptorInfos {
-    let result: Partial<descriptorInfos> = {};
+  init(): this {
     let type = this.typeChecker.getTypeAtLocation(this.identifier);
-    if (!type.symbol.declarations) {
-      throw new Error("Missing declarations");
+    if (!type.symbol?.declarations) {
+      this.name = "Missing declarations";
+      this.path = "Missing/declarations";
+      this.componentDescriptor = new ComponentDescriptor();
+      return this;
     }
 
     let nodeObject = type.symbol.declarations[0] as TS.Node;
@@ -163,7 +171,7 @@ class DeclarationDescriptor {
     }
     this.path = path.relative(this.componentDescriptor.packagePath, sourceFile.fileName)
 
-    return result as descriptorInfos;
+    return this;
   }
 
   getFile4NodeObject(object: TS.Node): TS.SourceFile {
@@ -409,22 +417,40 @@ class ThinglishCallExpressionVisitor extends BaseVisitor implements TSNodeVisito
   }
 
   visit(node: TS.CallExpression): TS.VisitResult<TS.Node> {
+    let fileVisitor = this.context.fileVisitor;
 
-    if (this.context.fileVisitor.phase === "before") return node;
+    if (this.context.fileVisitor.phase === "before") {
 
-    // Add leading "/" to IOR import
-    if (node.expression.kind === TS.SyntaxKind.ImportKeyword) {
-      if (node.arguments.length === 1 && node.arguments[0].kind === TS.SyntaxKind.StringLiteral) {
-        let arg = node.arguments[0] as TS.StringLiteral;
+      // getInterfaceDescriptor transform Interface to identifier
+      if (node.typeArguments !== undefined && node.typeArguments.length === 1 && TS.isTypeReferenceNode(node.typeArguments[0]) &&
+        ((node.expression as TS.PropertyAccessExpression)?.expression as TS.Identifier)?.escapedText === 'InterfaceDescriptor' &&
+        (node.expression as TS.PropertyAccessExpression)?.name?.escapedText === 'getInterfaceDescriptor') {
 
-        if (arg.text.startsWith('ior:esm:')) {
-          return TS.factory.updateCallExpression(node, node.expression, node.typeArguments, [TS.factory.createStringLiteral(`/${arg.text}`)])
+        let dd = new DeclarationDescriptor((node.typeArguments[0].typeName as TS.Identifier), this.context);
+        return TS.factory.updateCallExpression(node, node.expression, node.typeArguments, [
+          TS.factory.createStringLiteral(dd.componentDescriptor.package),
+          TS.factory.createStringLiteral(dd.componentDescriptor.name),
+          TS.factory.createStringLiteral(dd.componentDescriptor.version),
+          TS.factory.createStringLiteral(dd.location),
+          TS.factory.createStringLiteral(dd.name)
+        ])
+      }
+      return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
+    } else {
+
+      // Add leading "/" to IOR import
+      if (node.expression.kind === TS.SyntaxKind.ImportKeyword) {
+        if (node.arguments.length === 1 && node.arguments[0].kind === TS.SyntaxKind.StringLiteral) {
+          let arg = node.arguments[0] as TS.StringLiteral;
+
+          if (arg.text.startsWith('ior:esm:')) {
+            return TS.factory.updateCallExpression(node, node.expression, node.typeArguments, [TS.factory.createStringLiteral(`/${arg.text}`)])
+          }
         }
       }
-    }
 
-    let fileVisitor = this.context.fileVisitor;
-    return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
+      return TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
+    }
   }
 }
 
