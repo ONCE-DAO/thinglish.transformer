@@ -101,7 +101,7 @@ class ComponentDescriptor {
 
       let type = this.getKindName4Node(element.identifier.parent, element.identifier);
 
-      let relativePath = path.relative(path.join(this.packagePath, this.rootDir), element.file.fileName)
+      let relativePath = path.relative(this.rootDir, element.file.fileName)
       data[relativePath] = data[relativePath] || {};
       data[relativePath][element.identifier.text] = { name: exportName, defaultExport, type }
     }
