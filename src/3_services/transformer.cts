@@ -1,5 +1,5 @@
 import * as TS from 'typescript';
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync, writeSync } from "fs";
 import * as path from "path";
 const debug: boolean = false;
 
@@ -16,11 +16,13 @@ type VisitorContext = {
   transformationContext: TS.TransformationContext
   program: TS.Program
   sourceFile: TS.SourceFile,
-  fileVisitor: ThinglishFileVisitor
+  fileVisitor: ThinglishFileVisitor,
+  componentDescriptor: ComponentDescriptor;
 };
 
 interface TSNodeVisitor {
   context: VisitorContext
+  componentDescriptor: ComponentDescriptor;
   visit(node: TS.Node): TS.VisitResult<TS.Node>
   test?(node: TS.Node): boolean
   lift?(node: readonly TS.Node[]): TS.Node
@@ -38,7 +40,7 @@ abstract class BaseVisitor implements TSNodeVisitor {
   abstract visit(node: TS.Node): TS.VisitResult<TS.Node>
 
   get componentDescriptor(): ComponentDescriptor {
-    return ComponentDescriptor.getComponentDescriptor4File(this.context.sourceFile)
+    return this.context.componentDescriptor;
   }
 
 
@@ -48,9 +50,12 @@ abstract class BaseVisitor implements TSNodeVisitor {
 
 }
 
+var activeProgram: TS.Program;
 
-
-
+type exportType = 'class' | 'interface' | 'type' | 'enum' | 'unknown'
+type exportFormat = {
+  [file: string]: { [objectName: string]: { name: string, defaultExport: boolean, type: exportType } }
+}
 class ComponentDescriptor {
 
   private static _store: Record<string, ComponentDescriptor> = {};
@@ -60,12 +65,85 @@ class ComponentDescriptor {
   version: string;
   packagePath: any;
 
-  static getComponentDescriptor4File(sourceFile: TS.SourceFile | string): ComponentDescriptor {
+  private exportUpdates: boolean = false;
+
+
+  get exportFilePath(): string {
+    let compilerOptions = activeProgram.getCompilerOptions();
+    if (!compilerOptions.outDir) throw new Error("Missing compiler option 'outDir'");
+
+    return path.join(compilerOptions.outDir, this.name + '.component.json');
+  }
+
+  get rootDir(): string {
+    let compilerOptions = activeProgram.getCompilerOptions();
+    if (!compilerOptions.rootDir) throw new Error("Missing compiler option 'rootDir'");
+    return compilerOptions.rootDir;
+  }
+
+  exports: { file: TS.SourceFile, identifier: TS.Identifier }[] = [];
+
+  addExport(file: TS.SourceFile, identifier: TS.Identifier): void {
+    // ignore the export File
+    if (file.fileName.endsWith('index.export.mts')) return;
+    this.exports.push({ file, identifier });
+    this.exportUpdates = true;
+    // console.log("Add Export " + this.packagePath, ' ', file.fileName, ' ', identifier.text)
+  }
+
+  private formatExports(): exportFormat {
+    let data: exportFormat = {};
+    for (let element of this.exports) {
+      let exportName = element.identifier.text;
+      let defaultExport: boolean = false;
+      if (element.identifier.parent.modifiers)
+        defaultExport = element.identifier.parent.modifiers.filter(x => x.kind === TS.SyntaxKind.DefaultKeyword).length === 1
+
+      let type = this.getKindName4Node(element.identifier.parent, element.identifier);
+
+      let relativePath = path.relative(path.join(this.packagePath, this.rootDir), element.file.fileName)
+      data[relativePath] = data[relativePath] || {};
+      data[relativePath][element.identifier.text] = { name: exportName, defaultExport, type }
+    }
+
+    return data;
+  }
+
+  getKindName4Node(node: TS.Node, identifier: TS.Identifier): exportType {
+
+    if (TS.isClassDeclaration(node)) return "class";
+    if (TS.isInterfaceDeclaration(node)) return "interface";
+    if (TS.isEnumDeclaration(node)) return "enum";
+    if (TS.isTypeAliasDeclaration(node)) return "type";
+
+
+    let dd = new DeclarationDescriptor(identifier);
+    if (dd.name === DeclarationDescriptor.MISSING_DECLARATION)
+      return "unknown"
+
+    throw new Error("Not implemented yet")
+  }
+
+  writeExports() {
+    if (!this.exportUpdates) return;
+    let data = this.formatExports();
+    let currentData: any = {};
+    if (existsSync(this.exportFilePath)) {
+      currentData = JSON.parse(readFileSync(this.exportFilePath, 'utf8').toString());
+    }
+    currentData.exports = data;
+    writeFileSync(this.exportFilePath, JSON.stringify(currentData, null, 2));
+    this.exportUpdates = false;
+  }
+
+  static getComponentDescriptor(object: TS.SourceFile | string | TS.Node): ComponentDescriptor {
     let filename: string;
-    if (typeof sourceFile === 'string') {
-      filename = sourceFile;
+    if (typeof object === 'string') {
+      filename = object;
+    } else if (TS.isSourceFile(object)) {
+      filename = object.fileName;
     } else {
-      filename = sourceFile.fileName;
+      filename = TSAstFactory.getFile4NodeObject(object).fileName;
     }
 
     let packageFile = this.getPackage4File(path.dirname(filename).split('/'), filename);
@@ -80,11 +158,15 @@ class ComponentDescriptor {
 
   }
 
+  static UNKNOWN_NAME = "Unknown name"
+  static UNKNOWN_VERSION = "Unknown version"
+  static UNKNOWN_PACKAGE = "Unknown package";
+
   constructor(packageJson?: string) {
     if (!packageJson) {
-      this.package = "Unknown Namespace";
-      this.name = "Unknown name";
-      this.version = "Unknown version";
+      this.package = ComponentDescriptor.UNKNOWN_PACKAGE;
+      this.name = ComponentDescriptor.UNKNOWN_NAME;
+      this.version = ComponentDescriptor.UNKNOWN_VERSION;
       return this;
     }
     const packageJsonData = JSON.parse(readFileSync(packageJson).toString());
@@ -133,40 +215,43 @@ class DeclarationDescriptor {
   name!: string;
   componentDescriptor!: ComponentDescriptor;
 
+  type!: TS.Type;
+
+  originalNodeObject!: TS.Node;
   get location(): string {
     return this.path.replace(/^\/?src\/?/, '')
   }
 
-  constructor(public identifier: TS.Identifier, private context: VisitorContext) {
+  constructor(public identifier: TS.Identifier) {
     this.init();
   }
 
   get typeChecker() {
-    return this.context.program.getTypeChecker();
+    return activeProgram.getTypeChecker();
   }
 
-
+  static MISSING_DECLARATION = "MissingDeclarations"
 
   init(): this {
-    let type = this.typeChecker.getTypeAtLocation(this.identifier);
-    if (!type.symbol?.declarations) {
-      this.name = "Missing declarations";
-      this.path = "Missing/declarations";
+    this.type = this.typeChecker.getTypeAtLocation(this.identifier);
+    if (!this.type.symbol?.declarations) {
+      this.name = DeclarationDescriptor.MISSING_DECLARATION;
+      this.path = DeclarationDescriptor.MISSING_DECLARATION;
       this.componentDescriptor = new ComponentDescriptor();
       return this;
     }
 
-    let nodeObject = type.symbol.declarations[0] as TS.Node;
+    this.originalNodeObject = this.type.symbol.declarations[0] as TS.Node;
 
-    let sourceFile = this.getFile4NodeObject(nodeObject);
+    let sourceFile = TSAstFactory.getFile4NodeObject(this.originalNodeObject);
 
-    this.componentDescriptor = ComponentDescriptor.getComponentDescriptor4File(sourceFile.fileName);
+    this.componentDescriptor = ComponentDescriptor.getComponentDescriptor(sourceFile.fileName);
 
 
-    if ((TS.isInterfaceDeclaration(nodeObject) || TS.isClassDeclaration(nodeObject)) && typeof nodeObject.name !== "undefined") {
-      this.name = nodeObject.name.escapedText as string;
+    if ((TS.isInterfaceDeclaration(this.originalNodeObject) || TS.isClassDeclaration(this.originalNodeObject)) && typeof this.originalNodeObject.name !== "undefined") {
+      this.name = this.originalNodeObject.name.escapedText as string;
     } else {
-      this.name = type.symbol.name;
+      this.name = this.type.symbol.name;
 
     }
     this.path = path.relative(this.componentDescriptor.packagePath, sourceFile.fileName)
@@ -174,15 +259,7 @@ class DeclarationDescriptor {
     return this;
   }
 
-  getFile4NodeObject(object: TS.Node): TS.SourceFile {
-    if (TS.isSourceFile(object)) {
-      return object;
-    } else if (object.parent) {
-      return this.getFile4NodeObject(object.parent);
-    } else {
-      throw new Error("Missing Parent")
-    }
-  }
+
 }
 
 
@@ -200,12 +277,15 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
   visit(node: TS.InterfaceDeclaration): TS.VisitResult<TS.Node> {
     if (this.context.fileVisitor.phase === "after") return node;
 
+    let fileVisitor = this.context.fileVisitor;
+
     this.addImportInterfaceDescriptor();
     const exportVariableStatement = this.getInterfaceDescriptorRegister(node);
 
     //if (debug) console.log(node);
+    let newNode = TS.visitEachChild(node, fileVisitor.visitor.bind(fileVisitor), fileVisitor.context);
 
-    return [exportVariableStatement, node];
+    return [exportVariableStatement, newNode];
   }
 
 
@@ -249,7 +329,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
   addExtendDeceleration(identifier: TS.Identifier, innerCallExpression: TS.CallExpression): TS.CallExpression {
 
-    let descriptor = new DeclarationDescriptor(identifier, this.context)
+    let descriptor = new DeclarationDescriptor(identifier)
 
     return TS.factory.createCallExpression(
       TS.factory.createPropertyAccessExpression(
@@ -272,7 +352,7 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
     //let newNode = ts.createSourceFile(interfaceName+"interface.ts","empty file", ts.ScriptTarget.ES5, true ,ts.ScriptKind.TS);
     const cd = TS.factory.createIdentifier('InterfaceDescriptor');
 
-    let declarationDescriptor = new DeclarationDescriptor(node.name, this.context);
+    let declarationDescriptor = new DeclarationDescriptor(node.name);
     //let componentDescriptor = this.componentDescriptor;
 
     let call = TS.factory.createCallExpression(
@@ -323,6 +403,16 @@ class TSAstFactory {
     return file.fileName.toLowerCase().includes("once/once@")
   }
 
+  static getFile4NodeObject(object: TS.Node): TS.SourceFile {
+    if (TS.isSourceFile(object)) {
+      return object;
+    } else if (object.parent) {
+      return this.getFile4NodeObject(object.parent);
+    } else {
+      throw new Error("Missing Parent")
+    }
+  }
+
   static createDefaultImportNode(name: string, importPath: string): TS.ImportDeclaration {
     return TS.factory.createImportDeclaration(
       undefined,
@@ -357,6 +447,8 @@ class TSAstFactory {
 
 }
 
+
+
 class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
 
   static get validTSSyntaxKind(): TS.SyntaxKind {
@@ -367,12 +459,25 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
     BaseVisitor.implementations.push(this);
   }
 
+  get typeChecker() {
+    return this.context.program.getTypeChecker();
+  }
+
   private readonly allowedExtensions = ['.interface', '.class', '.interface.mjs', '.class.mjs']
 
   visit(node: TS.ExportDeclaration): TS.VisitResult<TS.Node> {
 
-    //throw new Error("HIT");
-    if (this.context.fileVisitor.phase === "before") return node;
+    if (this.context.fileVisitor.phase === "before") {
+      if (node.exportClause && "elements" in node.exportClause) {
+        let sourceFile = TSAstFactory.getFile4NodeObject(node)
+        let cd = ComponentDescriptor.getComponentDescriptor(node);
+        for (let element of node.exportClause.elements) {
+          //let dd = new DeclarationDescriptor(element.name, this.context);
+          cd.addExport(sourceFile, element.name);
+        }
+      }
+      return node;
+    }
 
     // if (this.context.sourceFile.fileName.match('/test/')) {
     //   if (debug) console.log("No update for import on File: " + this.context.sourceFile.fileName)
@@ -406,6 +511,50 @@ class ThinglishExportVisitor extends BaseVisitor implements TSNodeVisitor {
 
 }
 
+
+
+class ThinglishExportKeyword extends BaseVisitor implements TSNodeVisitor {
+
+  static get validTSSyntaxKind(): TS.SyntaxKind {
+    return TS.SyntaxKind.ExportKeyword
+  }
+
+  static {
+    BaseVisitor.implementations.push(this);
+  }
+
+  get typeChecker() {
+    return this.context.program.getTypeChecker();
+  }
+
+
+  visit(node: TS.ExportKeyword): TS.VisitResult<TS.Node> {
+    let parent = node.parent;
+    let cd = ComponentDescriptor.getComponentDescriptor(node);
+
+    if (this.context.fileVisitor.phase === "before") {
+
+      if (TS.isInterfaceDeclaration(parent)) {
+        cd.addExport(this.context.fileVisitor.sourceFile, parent.name);
+      } else if (TS.isClassDeclaration(parent) && parent.name !== undefined) {
+        cd.addExport(this.context.fileVisitor.sourceFile, parent.name);
+      } else if (TS.isEnumDeclaration(parent) && parent.name !== undefined) {
+        cd.addExport(this.context.fileVisitor.sourceFile, parent.name);
+      } else if (TS.isTypeAliasDeclaration(parent)) {
+        cd.addExport(this.context.fileVisitor.sourceFile, parent.name);
+      } else if (TS.isVariableStatement(parent)) {
+        // Not implemented Yet
+      } else {
+        cd
+      }
+    }
+    return node;
+
+  }
+
+
+}
+
 class ThinglishCallExpressionVisitor extends BaseVisitor implements TSNodeVisitor {
 
   static get validTSSyntaxKind(): TS.SyntaxKind {
@@ -426,7 +575,7 @@ class ThinglishCallExpressionVisitor extends BaseVisitor implements TSNodeVisito
         ((node.expression as TS.PropertyAccessExpression)?.expression as TS.Identifier)?.escapedText === 'InterfaceDescriptor' &&
         (node.expression as TS.PropertyAccessExpression)?.name?.escapedText === 'getInterfaceDescriptor') {
 
-        let dd = new DeclarationDescriptor((node.typeArguments[0].typeName as TS.Identifier), this.context);
+        let dd = new DeclarationDescriptor((node.typeArguments[0].typeName as TS.Identifier));
         return TS.factory.updateCallExpression(node, node.expression, node.typeArguments, [
           TS.factory.createStringLiteral(dd.componentDescriptor.package),
           TS.factory.createStringLiteral(dd.componentDescriptor.name),
@@ -548,7 +697,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   getDecoratorRegister(node: TS.ClassDeclaration): TS.Decorator {
     if (!node.name) throw new Error("Missing Class name")
-    const declarationDescriptor = new DeclarationDescriptor(node.name, this.context);
+    const declarationDescriptor = new DeclarationDescriptor(node.name);
 
     return this.descriptorCreator(["ClassDescriptor", "register"],
       [declarationDescriptor.componentDescriptor.package,
@@ -573,7 +722,7 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
   getDecoratorInterface(identifier: TS.Identifier): TS.Decorator | undefined {
 
-    let declarationDescriptor = new DeclarationDescriptor(identifier, this.context)
+    let declarationDescriptor = new DeclarationDescriptor(identifier)
     return this.descriptorCreator(["ClassDescriptor", "addInterfaces"],
       [declarationDescriptor.componentDescriptor.package,
       declarationDescriptor.componentDescriptor.name,
@@ -718,7 +867,9 @@ class ThinglishFileVisitor {
 
   visitor(node: TS.Node): TS.VisitResult<TS.Node> {
 
-    let visitorContext: VisitorContext = { transformationContext: this.context, sourceFile: this.sourceFile, program: this.program, fileVisitor: this }
+    let componentDescriptor = ComponentDescriptor.getComponentDescriptor(this.sourceFile);
+
+    let visitorContext: VisitorContext = { transformationContext: this.context, sourceFile: this.sourceFile, program: this.program, fileVisitor: this, componentDescriptor }
     let visitorList = BaseVisitor.implementations.filter(aTSNodeVisitor => aTSNodeVisitor.validTSSyntaxKind === node.kind);
     if (visitorList.length > 1) throw new Error("Can not have more then one visitor");
 
@@ -732,12 +883,15 @@ class ThinglishFileVisitor {
       return myVisitor[0].visit(node)
     }
 
-    return TS.visitEachChild(node, this.visitor.bind(this), this.context);
+    let result = TS.visitEachChild(node, this.visitor.bind(this), this.context);
+    if (visitorContext.fileVisitor.phase === "before") componentDescriptor.writeExports();
+    return result;
   }
 
 }
 
 const programTransformer = (program: TS.Program) => {
+  activeProgram = program;
 
   return {
 
