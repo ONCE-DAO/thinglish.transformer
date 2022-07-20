@@ -52,10 +52,18 @@ abstract class BaseVisitor implements TSNodeVisitor {
 
 var activeProgram: TS.Program;
 
-type exportType = 'class' | 'interface' | 'type' | 'enum' | 'unknown'
+type exportType = 'TypescriptClass' | 'TypescriptInterface' | 'TypescriptType' | 'TypescriptEnum' | "unknown"
 type exportFormat = {
   [file: string]: { [objectName: string]: { name: string, defaultExport: boolean, type: exportType } }
 }
+
+interface InterfaceObject {
+  type: exportType,
+  name: string,
+  unitDefaultExport: boolean,
+  unitName: string
+}
+
 class ComponentDescriptor {
 
   private static _store: Record<string, ComponentDescriptor> = {};
@@ -85,25 +93,26 @@ class ComponentDescriptor {
 
   addExport(file: TS.SourceFile, identifier: TS.Identifier): void {
     // ignore the export File
-    if (file.fileName.endsWith('index.export.mts')) return;
+    if (file.fileName.match(/index\.export\.[mc]?[jt]s/)) return;
     this.exports.push({ file, identifier });
     this.exportUpdates = true;
     // console.log("Add Export " + this.packagePath, ' ', file.fileName, ' ', identifier.text)
   }
 
-  private formatExports(): exportFormat {
-    let data: exportFormat = {};
+  private formatExports(): InterfaceObject[] {
+    let data: InterfaceObject[] = [];
     for (let element of this.exports) {
       let exportName = element.identifier.text;
-      let defaultExport: boolean = false;
+      let unitDefaultExport: boolean = false;
       if (element.identifier.parent.modifiers)
-        defaultExport = element.identifier.parent.modifiers.filter(x => x.kind === TS.SyntaxKind.DefaultKeyword).length === 1
+        unitDefaultExport = element.identifier.parent.modifiers.filter(x => x.kind === TS.SyntaxKind.DefaultKeyword).length === 1
 
       let type = this.getKindName4Node(element.identifier.parent, element.identifier);
-
       let relativePath = path.relative(this.rootDir, element.file.fileName)
-      data[relativePath] = data[relativePath] || {};
-      data[relativePath][element.identifier.text] = { name: exportName, defaultExport, type }
+      let unitName = relativePath.replace(/ts$/, 'js');
+      let interfaceObject: InterfaceObject = { type, name: exportName, unitDefaultExport, unitName }
+
+      data.push(interfaceObject);
     }
 
     return data;
@@ -111,10 +120,10 @@ class ComponentDescriptor {
 
   getKindName4Node(node: TS.Node, identifier: TS.Identifier): exportType {
 
-    if (TS.isClassDeclaration(node)) return "class";
-    if (TS.isInterfaceDeclaration(node)) return "interface";
-    if (TS.isEnumDeclaration(node)) return "enum";
-    if (TS.isTypeAliasDeclaration(node)) return "type";
+    if (TS.isClassDeclaration(node)) return "TypescriptClass";
+    if (TS.isInterfaceDeclaration(node)) return "TypescriptInterface";
+    if (TS.isEnumDeclaration(node)) return "TypescriptEnum";
+    if (TS.isTypeAliasDeclaration(node)) return "TypescriptType";
 
 
     let dd = new DeclarationDescriptor(identifier);
@@ -126,12 +135,13 @@ class ComponentDescriptor {
 
   writeExports() {
     if (!this.exportUpdates) return;
-    let data = this.formatExports();
+    let interfaceList = this.formatExports();
     let currentData: any = {};
     if (existsSync(this.exportFilePath)) {
       currentData = JSON.parse(readFileSync(this.exportFilePath, 'utf8').toString());
     }
-    currentData.exports = data;
+    //if (currentData.interfaceList) data = [...data, ...currentData.interfaceList]
+    currentData.interfaceList = interfaceList;
     writeFileSync(this.exportFilePath, JSON.stringify(currentData, null, 2));
     this.exportUpdates = false;
   }

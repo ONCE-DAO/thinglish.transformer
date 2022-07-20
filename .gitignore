@@ -109,3 +109,5 @@ dist
 transformer-test/dist/*
 
 dist
+src/index.export.cts
+src/index.export.mts
