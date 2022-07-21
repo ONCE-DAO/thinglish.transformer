@@ -264,7 +264,7 @@ class DeclarationDescriptor {
     this.type = this.typeChecker.getTypeAtLocation(this.identifier);
     if (!this.type.symbol?.declarations) {
       this.name = DeclarationDescriptor.MISSING_DECLARATION;
-      this.path = DeclarationDescriptor.MISSING_DECLARATION;
+      this.path = this.identifier.text;
       this.componentDescriptor = new ComponentDescriptor();
       return this;
     }
@@ -282,9 +282,13 @@ class DeclarationDescriptor {
       this.name = this.type.symbol.name;
 
     }
-    this.path = path.relative(this.componentDescriptor.packagePath, sourceFile.fileName)
+    this.path = path.relative(this.componentDescriptor.packagePath, this.normalizeFile(sourceFile.fileName))
 
     return this;
+  }
+
+  private normalizeFile(filePath: string): string {
+    return filePath.replace(/(\.d)?\.mts$/, '.mjs');
   }
 
 
