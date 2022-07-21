@@ -64,7 +64,15 @@ interface InterfaceObject {
   unitName: string
 }
 
+class Dependency {
+  type: 'IOR' = 'IOR'
+
+  constructor(public name: string, public ior: string) { }
+};
+
+
 class ComponentDescriptor {
+
 
   private static _store: Record<string, ComponentDescriptor> = {};
 
@@ -74,6 +82,8 @@ class ComponentDescriptor {
   packagePath: any;
 
   private exportUpdates: boolean = false;
+
+  dependency: Dependency[] = [];
 
 
   get exportFilePath(): string {
@@ -87,6 +97,13 @@ class ComponentDescriptor {
     let compilerOptions = activeProgram.getCompilerOptions();
     if (!compilerOptions.rootDir) throw new Error("Missing compiler option 'rootDir'");
     return compilerOptions.rootDir;
+  }
+
+  addIORDependency(iorString: string): void {
+    if (this.dependency.filter(x => x.ior === iorString).length) return;
+    let dependency = new Dependency(iorString.replace(/.*\/(.+)\[.*/, '$1'), iorString);
+    this.dependency.push(dependency);
+    this.exportUpdates = true;
   }
 
   exports: { file: TS.SourceFile, identifier: TS.Identifier }[] = [];
@@ -133,7 +150,7 @@ class ComponentDescriptor {
     throw new Error("Not implemented yet")
   }
 
-  writeExports() {
+  write2File() {
     if (!this.exportUpdates) return;
     let interfaceList = this.formatExports();
     let currentData: any = {};
@@ -142,6 +159,7 @@ class ComponentDescriptor {
     }
     //if (currentData.interfaceList) data = [...data, ...currentData.interfaceList]
     currentData.interfaceList = interfaceList;
+    currentData.dependencyList = this.dependency;
     writeFileSync(this.exportFilePath, JSON.stringify(currentData, null, 2));
     this.exportUpdates = false;
   }
@@ -603,6 +621,7 @@ class ThinglishCallExpressionVisitor extends BaseVisitor implements TSNodeVisito
           let arg = node.arguments[0] as TS.StringLiteral;
 
           if (arg.text.startsWith('ior:esm:')) {
+            this.context.componentDescriptor.addIORDependency(arg.text);
             return TS.factory.updateCallExpression(node, node.expression, node.typeArguments, [TS.factory.createStringLiteral(`/${arg.text}`)])
           }
         }
@@ -641,6 +660,8 @@ class ThinglishImportVisitor extends BaseVisitor implements TSNodeVisitor {
 
     if (this.shouldMutateModuleSpecifier(node)) {
       if (TS.isImportDeclaration(node)) {
+        this.context.componentDescriptor.addIORDependency(node.moduleSpecifier.text);
+
         const newModuleSpecifier = TS.factory.createStringLiteral(`/${node.moduleSpecifier.text}`)
         return TS.factory.updateImportDeclaration(node, node.decorators, node.modifiers, node.importClause, newModuleSpecifier, undefined)
       }
@@ -894,7 +915,7 @@ class ThinglishFileVisitor {
     }
 
     let result = TS.visitEachChild(node, this.visitor.bind(this), this.context);
-    if (visitorContext.fileVisitor.phase === "before") componentDescriptor.writeExports();
+    if (visitorContext.fileVisitor.phase === "before") componentDescriptor.write2File();
     return result;
   }
 
