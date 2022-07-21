@@ -67,7 +67,7 @@ interface InterfaceObject {
 class Dependency {
   type: 'IOR' = 'IOR'
 
-  constructor(public name: string, public ior: string) { }
+  constructor(public name: string, public reference: string) { }
 };
 
 
@@ -100,7 +100,7 @@ class ComponentDescriptor {
   }
 
   addIORDependency(iorString: string): void {
-    if (this.dependency.filter(x => x.ior === iorString).length) return;
+    if (this.dependency.filter(x => x.reference === iorString).length) return;
     let dependency = new Dependency(iorString.replace(/.*\/(.+)\[.*/, '$1'), iorString);
     this.dependency.push(dependency);
     this.exportUpdates = true;
