@@ -1,5 +1,5 @@
 import * as TS from 'typescript';
-import { existsSync, readdirSync, readFileSync, writeFileSync, writeSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import * as path from "path";
 const debug: boolean = false;
 
@@ -7,7 +7,7 @@ const jsExtension: boolean = false;
 
 const localInterfaceDescriptorPath: string = '2_systems/Things/InterfaceDescriptor.class.mjs'
 const localClassDescriptorPath: string = '2_systems/Things/ClassDescriptor.class.mjs'
-const onceIOR = "ior:esm:/tla.EAM.Once[build]";
+// const onceIOR = "ior:esm:/tla.EAM.Once[build]";
 /**
  * When using a basic NodeTransformer some helpful context will be provided as the second parameter
  */
@@ -417,8 +417,8 @@ class ThinglishInterfaceVisitor extends BaseVisitor implements TSNodeVisitor {
 
       importNode = TSAstFactory.createDefaultImportNode("InterfaceDescriptor", relativePath);
     } else {
-      // let onceIOR = this.context.program.getCompilerOptions().onceIOR;
-      // if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
+      let onceIOR = this.context.program.getCompilerOptions().onceIOR;
+      if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
       importNode = TSAstFactory.createNamedImportNode("InterfaceDescriptor", onceIOR);
 
     }
@@ -832,8 +832,8 @@ class ThinglishClassVisitor extends BaseVisitor implements TSNodeVisitor {
 
       importNode = TSAstFactory.createDefaultImportNode("ClassDescriptor", relativePath);
     } else {
-      // let onceIOR = this.context.program.getCompilerOptions().onceIOR;
-      // if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
+      let onceIOR = this.context.program.getCompilerOptions().onceIOR;
+      if (typeof onceIOR != "string") throw new Error("Missing onceIOR in the CompilerOptions")
 
       importNode = TSAstFactory.createNamedImportNode("ClassDescriptor", onceIOR);
     }
