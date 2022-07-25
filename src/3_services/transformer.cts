@@ -111,6 +111,7 @@ class ComponentDescriptor {
   addExport(file: TS.SourceFile, identifier: TS.Identifier): void {
     // ignore the export File
     if (file.fileName.match(/index\.export\.[mc]?[jt]s/)) return;
+    if (this.exports.filter(x => x.identifier.text === identifier.text && x.file.fileName == file.fileName).length) return;
     this.exports.push({ file, identifier });
     this.exportUpdates = true;
     // console.log("Add Export " + this.packagePath, ' ', file.fileName, ' ', identifier.text)
